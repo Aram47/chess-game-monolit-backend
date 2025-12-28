@@ -20,7 +20,7 @@ export class UserRelatedData {
   @Column({ type: 'varchar', length: 20 })
   plan: string;
 
-  @Column({ type: 'unsigned big int' })
+  @Column({ type: 'bigint' })
   xp: number;
 
   @Column({ type: 'int8' })
