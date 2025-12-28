@@ -28,7 +28,9 @@ export class User {
   @Column({ type: 'varchar' })
   email: string;
 
-  @OneToOne(() => UserRelatedData, (related) => related.user)
+  @OneToOne(() => UserRelatedData, (related) => related.user, {
+    cascade: true,
+  })
   userRelatedData: UserRelatedData;
 
   @CreateDateColumn()

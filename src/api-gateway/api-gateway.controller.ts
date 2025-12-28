@@ -13,7 +13,7 @@ export class ApiGatewayController {
   @Post()
   async login() {}
 
-  @Post()
+  @Post('/register')
   async register(@Body() dto: CreateUserDto) {
     return await this.authService.register(dto);
   }
