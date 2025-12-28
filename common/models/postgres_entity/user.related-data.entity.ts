@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { Plan, Role } from 'common/enums';
+import { Plan, Role } from '../../';
 
 @Entity('UserRelatedData')
 export class UserRelatedData {
