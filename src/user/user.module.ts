@@ -12,11 +12,9 @@ import { User, UserRelatedData, ENV_VARIABLES } from '../../common';
         type: 'postgres',
         host: configService.get<string>(ENV_VARIABLES.POSTGRES_HOST),
         port: configService.get<number>(ENV_VARIABLES.POSTGRES_PORT),
-        username: configService.get<string>(ENV_VARIABLES.POSTGRES_USERNAME),
+        username: configService.get<string>(ENV_VARIABLES.POSTGRES_USER),
         password: configService.get<string>(ENV_VARIABLES.POSTGRES_PASSWORD),
-        database: configService.get<string>(
-          ENV_VARIABLES.POSTGRES_USER_DB_NAME,
-        ),
+        database: configService.get<string>(ENV_VARIABLES.POSTGRES_DB),
         entities: [User, UserRelatedData],
         synchronize: true, // for development
       }),
