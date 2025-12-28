@@ -1,7 +1,26 @@
-import { Controller } from '@nestjs/common';
+import { CreateUserDto } from '../../common';
+import { Controller, Body, Post } from '@nestjs/common';
+import { AuthService } from '../auth/auth.service';
 import { ApiGatewayService } from './api-gateway.service';
 
-@Controller('api-gateway')
+@Controller('api')
 export class ApiGatewayController {
-  constructor(private readonly apiGatewayService: ApiGatewayService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly apiGatewayService: ApiGatewayService,
+  ) {}
+
+  @Post()
+  async login() {}
+
+  @Post()
+  async register(@Body() dto: CreateUserDto) {
+    return await this.authService.register(dto);
+  }
+
+  @Post()
+  async refresh() {}
+
+  @Post()
+  async logout() {}
 }
