@@ -19,13 +19,13 @@ export class User {
   @Column({ type: 'varchar', length: 50 })
   surname: string;
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({ type: 'varchar', length: 20, unique: true })
   username: string;
 
-  @Column({ type: 'varchar', length: 30 })
+  @Column({ type: 'varchar', length: 100 })
   password: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', unique: true })
   email: string;
 
   @OneToOne(() => UserRelatedData, (related) => related.user, {

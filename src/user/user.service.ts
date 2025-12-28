@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { User, UserRelatedData, CreateUserDto } from '../../common';
 
 @Injectable()
@@ -11,20 +11,35 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserRelatedData)
     private readonly userRelatedDataRepository: Repository<UserRelatedData>,
+    private readonly datasSource: DataSource,
   ) {}
 
   async createUser(dto: CreateUserDto) {
     const { email, username, password, name, surname } = dto;
 
-    // const exist = await this.userRepository.findOne({
-    //   where: [{ email }, { username }],
-    // });
-
-    // if (exist) {
-    //   throw new BadRequestException('User already exist');
-    // }
-
     const hashedPassword = await bcrypt.hash(password, 10);
-    console.log(hashedPassword);
+    try {
+      return await this.datasSource.transaction(async (manager) => {
+        const user = manager.create(User, {
+          email,
+          name,
+          surname,
+          username,
+          password: hashedPassword,
+          userRelatedData: {},
+        });
+
+        const saved = await manager.save(User, user);
+
+        delete (saved as any).password;
+        return saved;
+      });
+    } catch (e: any) {
+      // Postgres unique violation
+      if (e?.code === '23505') {
+        throw new ConflictException('Email or username already exists');
+      }
+      throw e;
+    }
   }
 }
