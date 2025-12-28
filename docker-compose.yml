@@ -1,0 +1,92 @@
+version: "3.9"
+services:
+  chess-server:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: chess-server
+    volumes:
+      - ./src:/app
+      # - ./src:/app:cached # it can be used for the development purposes
+      - /app/node_modules
+    expose:
+      - "3000"
+    depends_on:
+      - redis
+      - mongo
+      - postgres
+      - prometheus
+      - grafana
+      - nginx
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  mongo:
+    image: mongo
+    expose:
+      - "27017"
+    volumes:
+      - mongo-data:/data/db
+
+  postgres:
+    image: postgres:16
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chess -d chess"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    expose:
+      - "9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana-data:/var/lib/grafana
+    env_file:
+      - ./.env.development
+    ports:
+      - "30000:3000"
+    depends_on:
+      - prometheus
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+      - "443:443"
+    depends_on:
+      - chess-game-api-gateway
+      - chess-game-sse-and-ws-gateway
+
+volumes:
+  mongo-data:
+  prom-data:
+  grafana-data:
+  pg-data:
+  redis_data:
+
+networks:
+  default:
+    driver: bridge
