@@ -1,26 +1,26 @@
 version: "3.9"
 
 services:
-  # chess-server:
-  #   build:
-  #     context: ./src
-  #     dockerfile: Dockerfile
-  #   container_name: chess-server
-  #   working_dir: /app
-  #   env_file:
-  #     - ./.env.development
-  #   volumes:
-  #     - ./src:/app
-  #     - /app/node_modules
-  #   expose:
-  #     - "3000"
-  #   depends_on:
-  #     redis:
-  #       condition: service_started
-  #     mongo:
-  #       condition: service_started
-  #     postgres:
-  #       condition: service_healthy
+  chess-server:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: chess-server
+    working_dir: /app
+    env_file:
+      - ./.env.development
+    volumes:
+      - ./src:/app
+      - /app/node_modules
+    expose:
+      - "3000"
+    depends_on:
+      redis:
+        condition: service_started
+      mongo:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:latest
@@ -89,8 +89,8 @@ services:
     ports:
       - "8080:80"
       - "443:443"
-    # depends_on:
-    #   - chess-server
+    depends_on:
+      - chess-server
 
 volumes:
   mongo-data:
