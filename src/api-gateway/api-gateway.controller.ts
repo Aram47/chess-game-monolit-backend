@@ -1,17 +1,17 @@
 import {
-  CreateUserDto,
   Pagination,
+  CreateUserDto,
   PaginationDto,
   UpdateUserDto,
 } from '../../common';
 import {
-  Controller,
+  Get,
   Body,
   Post,
-  Get,
+  Patch,
   Param,
   Delete,
-  Patch,
+  Controller,
 } from '@nestjs/common';
 import { ApiGatewayService } from './api-gateway.service';
 
@@ -52,4 +52,17 @@ export class ApiGatewayController {
 
   @Post()
   async logout() {}
+
+  @Get('/problems')
+  async getProblems(@Pagination() dto: PaginationDto) {}
+
+  @Post('/problems/:id')
+  async startProblem(@Param(':id') id: number) {}
+
+  // May be we will havn't need for this api
+  @Post('/problems/finsh/:id')
+  async finishProblem(@Param(':id') id: number) {}
+
+  @Post('/problems/move/:id')
+  async move(@Param(':id') id: number /*@Body() dto: ProblemDtoViaMove */) {}
 }
