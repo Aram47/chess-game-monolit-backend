@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { AuthService } from '../auth/auth.service';
-import { CreateUserDto, PaginationDto } from '../../common';
+import { CreateUserDto, PaginationDto, UpdateUserDto } from '../../common';
 
 @Injectable()
 export class ApiGatewayService {
@@ -20,5 +20,13 @@ export class ApiGatewayService {
 
   async getUsers(dto: PaginationDto) {
     return await this.userService.getUsers(dto);
+  }
+
+  async updateUserById(id: number, dto: UpdateUserDto) {
+    return await this.userService.updateUserById(id, dto);
+  }
+
+  async deleteUserById(id: number) {
+    return await this.userService.deleteUserById(id);
   }
 }
