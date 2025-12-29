@@ -13,6 +13,7 @@ import {
   UpdateUserDto,
   UserRelatedData,
 } from '../../common';
+import { DeleteResult } from 'typeorm/browser';
 
 @Injectable()
 export class UserService {
@@ -40,6 +41,7 @@ export class UserService {
         });
 
         const saved = await manager.save(User, user);
+        delete (saved as any).password;
         return saved;
       });
     } catch (e: any) {
@@ -66,26 +68,19 @@ export class UserService {
   }
 
   async deleteUserById(id: number) {
-    const res = await this.userRepository
+    const res: DeleteResult = await this.userRepository
       .createQueryBuilder()
       .delete()
       .from(User)
       .where('id = :id', { id })
-      .returning([
-        'id',
-        'email',
-        'username',
-        'name',
-        'surname',
-        'createdAt',
-        'updatedAt',
-      ])
+      .returning('*')
       .execute();
 
     if (!res.affected) throw new NotFoundException(`User ${id} not found`);
 
     // UserRelatedData row will be deleted by DB FK onDelete: 'CASCADE'
-    return { deleted: true, deletedUser: res.raw[0] };
+    const deletedUser = this.toUserResponse(res.raw[0]);
+    return { deleted: true, deletedUser: deletedUser };
   }
 
   async updateUserById(id: number, dto: UpdateUserDto) {
@@ -103,7 +98,7 @@ export class UserService {
       throw new NotFoundException(`User with id ${id} not found`);
     }
 
-    return updatedUser;
+    return this.toUserResponse(updatedUser);
   }
 
   async getUsers(p: PaginationDto) {
@@ -116,7 +111,7 @@ export class UserService {
       .getManyAndCount();
 
     return {
-      data: users,
+      users,
       meta: {
         total,
         page: p.page,
@@ -124,5 +119,10 @@ export class UserService {
         totalPages: Math.ceil(total / p.limit),
       },
     };
+  }
+
+  private toUserResponse(user: User) {
+    const { password, ...rest } = user;
+    return rest;
   }
 }
