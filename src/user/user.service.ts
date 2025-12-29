@@ -121,7 +121,19 @@ export class UserService {
     };
   }
 
-  private toUserResponse(user: User) {
+  async getUserByLoginWithPassword(login: string) {
+    const value = login.trim();
+
+    return this.userRepository
+      .createQueryBuilder('u')
+      .addSelect('u.password') // because select:false
+      .leftJoinAndSelect('u.userRelatedData', 'rd')
+      .where('LOWER(u.email) = LOWER(:value)', { value })
+      .orWhere('u.username = :value', { value })
+      .getOne();
+  }
+
+  toUserResponse(user: User) {
     const { password, ...rest } = user;
     return rest;
   }

@@ -14,13 +14,16 @@ import {
   Patch,
 } from '@nestjs/common';
 import { ApiGatewayService } from './api-gateway.service';
+import { LoginDto } from '../../common/dtos/user/user.login.dto';
 
 @Controller('api')
 export class ApiGatewayController {
   constructor(private readonly apiGatewayService: ApiGatewayService) {}
 
-  @Post()
-  async login() {}
+  @Post('/login')
+  async login(@Body() dto: LoginDto) {
+    return await this.apiGatewayService.login(dto);
+  }
 
   @Post('/register')
   async register(@Body() dto: CreateUserDto) {
