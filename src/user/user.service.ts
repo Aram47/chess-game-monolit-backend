@@ -8,11 +8,11 @@ import {
 } from '@nestjs/common';
 import {
   User,
-  UserRelatedData,
+  PaginationDto,
   CreateUserDto,
   UpdateUserDto,
+  UserRelatedData,
 } from '../../common';
-import { PaginationDto } from '../../common/dtos/pagination/pagination.dto';
 
 @Injectable()
 export class UserService {
