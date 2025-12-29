@@ -6,8 +6,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User, UserRelatedData, CreateUserDto } from '../../common';
-import { PaginationQuery } from '../../common/dtos/pagination/pagination.dto';
+import {
+  User,
+  UserRelatedData,
+  CreateUserDto,
+  UpdateUserDto,
+} from '../../common';
+import { PaginationDto } from '../../common/dtos/pagination/pagination.dto';
 
 @Injectable()
 export class UserService {
@@ -61,44 +66,63 @@ export class UserService {
   }
 
   async deleteUserById(id: number) {
-    // this.userRepository.createQueryBuilder().offset().skip().select().j
+    const res = await this.userRepository
+      .createQueryBuilder()
+      .delete()
+      .from(User)
+      .where('id = :id', { id })
+      .returning([
+        'id',
+        'email',
+        'username',
+        'name',
+        'surname',
+        'createdAt',
+        'updatedAt',
+      ])
+      .execute();
+
+    if (!res.affected) throw new NotFoundException(`User ${id} not found`);
+
+    // UserRelatedData row will be deleted by DB FK onDelete: 'CASCADE'
+    return { deleted: true, deletedUser: res.raw[0] };
   }
 
-  async getUsers(p: PaginationQuery) {
-    const qb = this.userRepository
+  async updateUserById(id: number, dto: UpdateUserDto) {
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set(dto)
+      .where('id = :id', { id })
+      .returning('*')
+      .execute();
+
+    const updatedUser = result.raw[0];
+
+    if (!updatedUser) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    return updatedUser;
+  }
+
+  async getUsers(p: PaginationDto) {
+    const [users, total] = await this.userRepository
       .createQueryBuilder('u')
-      .leftJoinAndSelect('u.userRelatedData', 'rd');
-
-    // search (optional)
-    if (p.search?.trim()) {
-      qb.andWhere(
-        `(u.username ILIKE :s OR u.email ILIKE :s OR u.name ILIKE :s OR u.surname ILIKE :s)`,
-        { s: `%${p.search.trim()}%` },
-      );
-    }
-
-    // order (use what comes from controller)
-    if (p.sortBy) {
-      qb.orderBy(`u.${p.sortBy}`, p.sortDir);
-    }
-
-    // pagination
-    const page = p.page ?? 1;
-    const limit = p.limit ?? 20;
-
-    qb.skip((page - 1) * limit).take(limit);
-
-    const [items, total] = await qb.getManyAndCount();
+      .leftJoinAndSelect('u.userRelatedData', 'rd')
+      .orderBy(`u.${p.sortBy}`, p.sortDir)
+      .skip(p.skip)
+      .take(p.limit)
+      .getManyAndCount();
 
     return {
-      items,
+      data: users,
       meta: {
-        page,
-        limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        page: p.page,
+        limit: p.limit,
+        totalPages: Math.ceil(total / p.limit),
       },
     };
   }
-
 }
