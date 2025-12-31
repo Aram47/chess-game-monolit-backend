@@ -1,16 +1,22 @@
 import {
+  mergeDtos,
+  AuthGuard,
   Pagination,
+  MergePayload,
   CreateUserDto,
   PaginationDto,
   UpdateUserDto,
+  GetProblemsQueryDto,
 } from '../../common';
 import {
   Get,
   Body,
   Post,
+  Query,
   Patch,
   Param,
   Delete,
+  UseGuards,
   Controller,
 } from '@nestjs/common';
 import { ApiGatewayService } from './api-gateway.service';
@@ -53,16 +59,27 @@ export class ApiGatewayController {
   @Post()
   async logout() {}
 
+  @UseGuards(AuthGuard)
   @Get('/problems')
-  async getProblems(@Pagination() dto: PaginationDto) {}
+  async getProblems(
+    @Pagination() dto: PaginationDto,
+    @Query() filters: GetProblemsQueryDto,
+  ) {
+    const mergedPayload: MergePayload<[PaginationDto, GetProblemsQueryDto]> =
+      mergeDtos<[PaginationDto, GetProblemsQueryDto]>(dto, filters);
+    return await this.apiGatewayService.getProblems(mergedPayload);
+  }
 
-  @Post('/problems/:id')
+  @UseGuards(AuthGuard)
+  @Post('/problems/:id/start')
   async startProblem(@Param(':id') id: number) {}
 
   // May be we will havn't need for this api
-  @Post('/problems/finsh/:id')
+  @UseGuards(AuthGuard)
+  @Post('/problems/:id/finsh')
   async finishProblem(@Param(':id') id: number) {}
 
-  @Post('/problems/move/:id')
+  @UseGuards(AuthGuard)
+  @Post('/problems/:id/move')
   async move(@Param(':id') id: number /*@Body() dto: ProblemDtoViaMove */) {}
 }
