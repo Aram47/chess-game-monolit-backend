@@ -7,13 +7,18 @@ export const Pagination = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): PaginationDto => {
     const { query } = ctx.switchToHttp().getRequest();
 
-    const page = Math.max(Number(query.page), PAGINATION_DEFAULTS.PAGE);
+    const page = Math.max(
+      Number(query.page ?? PAGINATION_DEFAULTS.PAGE),
+      PAGINATION_DEFAULTS.PAGE,
+    );
     const limit = Math.min(
-      Math.max(Number(query.limit), PAGINATION_DEFAULTS.MIN_LIMIT),
+      Math.max(
+        Number(query.limit ?? PAGINATION_DEFAULTS.MIN_LIMIT),
+        PAGINATION_DEFAULTS.MIN_LIMIT,
+      ),
       PAGINATION_DEFAULTS.MAX_LIMIT,
     );
     const skip = (page - 1) * limit;
-
     const sortDir: SortDir =
       query.sortDir === SortDir.ASC ? SortDir.ASC : SortDir.DESC;
 

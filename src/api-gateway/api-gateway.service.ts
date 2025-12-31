@@ -3,6 +3,7 @@ import { UserService } from '../user/user.service';
 import { AuthService } from '../auth/auth.service';
 import { GameServiceService } from '../game-service/game-service.service';
 import {
+  LoginDto,
   MergePayload,
   CreateUserDto,
   PaginationDto,
@@ -36,6 +37,10 @@ export class ApiGatewayService {
 
   async deleteUserById(id: number) {
     return await this.userService.deleteUserById(id);
+  }
+
+  async login(dto: LoginDto) {
+    return await this.authService.login(dto);
   }
 
   async getProblems(
