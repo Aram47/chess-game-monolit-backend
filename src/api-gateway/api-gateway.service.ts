@@ -1,14 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { AuthService } from '../auth/auth.service';
-import { GameServiceService } from '../game-service/game-service.service';
 import {
   LoginDto,
-  MergePayload,
   CreateUserDto,
   PaginationDto,
   UpdateUserDto,
-  GetProblemsQueryDto,
 } from '../../common';
 
 @Injectable()
@@ -16,7 +13,6 @@ export class ApiGatewayService {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
-    private readonly gameService: GameServiceService,
   ) {}
 
   async register(dto: CreateUserDto) {
@@ -49,11 +45,5 @@ export class ApiGatewayService {
 
   async logout(accessToken: string) {
     return await this.authService.logout(accessToken);
-  }
-
-  async getProblems(
-    payload: MergePayload<[PaginationDto, GetProblemsQueryDto]>,
-  ) {
-    return await this.gameService.getProblems(payload);
   }
 }

@@ -1,13 +1,9 @@
 import {
   LoginDto,
-  mergeDtos,
-  AuthGuard,
   Pagination,
-  MergePayload,
   CreateUserDto,
   PaginationDto,
   UpdateUserDto,
-  GetProblemsQueryDto,
 } from '../../common';
 import {
   Req,
@@ -15,11 +11,9 @@ import {
   Get,
   Body,
   Post,
-  Query,
   Patch,
   Param,
   Delete,
-  UseGuards,
   Controller,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -108,28 +102,4 @@ export class ApiGatewayController {
     res.clearCookie('refreshToken');
     return res.sendStatus(200).json({ message: 'Logged out successfully' });
   }
-
-  @UseGuards(AuthGuard)
-  @Get('/problems')
-  async getProblems(
-    @Pagination() dto: PaginationDto,
-    @Query() filters: GetProblemsQueryDto,
-  ) {
-    const mergedPayload: MergePayload<[PaginationDto, GetProblemsQueryDto]> =
-      mergeDtos<[PaginationDto, GetProblemsQueryDto]>(dto, filters);
-    return await this.apiGatewayService.getProblems(mergedPayload);
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('/problems/:id/start')
-  async startProblem(@Param(':id') id: number) {}
-
-  // May be we will havn't need for this api
-  @UseGuards(AuthGuard)
-  @Post('/problems/:id/finsh')
-  async finishProblem(@Param(':id') id: number) {}
-
-  @UseGuards(AuthGuard)
-  @Post('/problems/:id/move')
-  async move(@Param(':id') id: number /*@Body() dto: ProblemDtoViaMove */) {}
 }

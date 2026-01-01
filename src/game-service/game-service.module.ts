@@ -1,14 +1,16 @@
 import { Module } from '@nestjs/common';
 import {
   Theme,
+  RedisModule,
   ChessProblem,
   ProblemTheme,
-  ProblemCategory,
   ENV_VARIABLES,
+  ProblemCategory,
 } from '../../common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GameServiceService } from './game-service.service';
+import { GameServiceController } from './game-service.controller';
 
 @Module({
   imports: [
@@ -31,8 +33,9 @@ import { GameServiceService } from './game-service.service';
       ProblemTheme,
       ProblemCategory,
     ]),
+    RedisModule,
   ],
+  controllers: [GameServiceController],
   providers: [GameServiceService],
-  exports: [GameServiceService],
 })
 export class GameServiceModule {}

@@ -1,19 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import Redis from 'ioredis';
 import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   Theme,
+  REDIS_CLIENT,
   MergePayload,
   ChessProblem,
   ProblemTheme,
   PaginationDto,
+  ProblemSession,
   ProblemCategory,
+  UserDecoratorDto,
   GetProblemsQueryDto,
 } from '../../common';
 
 @Injectable()
 export class GameServiceService {
   constructor(
+    @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
     @InjectRepository(Theme)
     private readonly themeRepository: Repository<Theme>,
     @InjectRepository(ChessProblem)
@@ -61,6 +66,38 @@ export class GameServiceService {
 
     qb.skip(payload.skip).take(payload.limit);
 
-    return qb.getManyAndCount();
+    return await qb.getManyAndCount();
+  }
+
+  async startProblem(problemId: number, userMetaData: UserDecoratorDto) {
+    const problem = await this.chessProblemRepository.findOne({
+      where: { id: problemId, isActive: true },
+    });
+
+    if (!problem) {
+      throw new NotFoundException('Problem not found');
+    }
+
+    const session: ProblemSession = {
+      userId: userMetaData.sub,
+      problemId,
+      fen: problem.fen,
+      solutionMoves: problem.solutionMoves,
+      userMoves: [],
+      startedAt: Date.now(),
+    };
+
+    await this.redisClient.set(
+      this.getSessionKey(userMetaData.sub, problemId),
+      JSON.stringify(session),
+      'EX',
+      1800,
+    );
+
+    return { status: 'started' };
+  }
+
+  private getSessionKey(userId: number, problemId: number): string {
+    return `problem_session:user:${userId}:problem:${problemId}`;
   }
 }
