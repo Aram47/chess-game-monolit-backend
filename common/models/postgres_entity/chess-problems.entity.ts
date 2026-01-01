@@ -23,6 +23,9 @@ export class ChessProblem {
   @Column({ type: 'text' })
   fen: string;
 
+  @Column({ type: 'simple-array' })
+  solutionMoves: string[];
+
   @Column({ type: 'text' })
   description: string;
 
