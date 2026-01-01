@@ -1,8 +1,7 @@
-import { Module } from '@nestjs/common';
-import { ENV_VARIABLES } from '../../';
-import { JwtUtils, AuthGuard } from '../';
-import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthGuard } from '../';
+import { ConfigModule } from '@nestjs/config';
+import { JwtUtilsModule } from '../jwt-utils';
+import { Global, Module } from '@nestjs/common';
 
 /**
  * Common Module
@@ -12,23 +11,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
  * - JwtUtils
  * - AuthGuard
  */
+@Global()
 @Module({
-  imports: [
-    ConfigModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        secret: config.get<string>(ENV_VARIABLES.JWT_SECRET),
-        signOptions: {
-          expiresIn: config.get<string | number>(
-            ENV_VARIABLES.JWT_EXPIRES_IN,
-          ) as JwtSignOptions['expiresIn'],
-        },
-      }),
-    }),
-  ],
-  providers: [JwtUtils, AuthGuard],
-  exports: [JwtUtils, AuthGuard],
+  imports: [ConfigModule, JwtUtilsModule],
+  providers: [AuthGuard],
+  exports: [JwtUtilsModule, AuthGuard],
 })
 export class CommonModule {}

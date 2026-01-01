@@ -43,6 +43,14 @@ export class ApiGatewayService {
     return await this.authService.login(dto);
   }
 
+  async refresh(refreshToken: string) {
+    return await this.authService.refresh(refreshToken);
+  }
+
+  async logout(accessToken: string) {
+    return await this.authService.logout(accessToken);
+  }
+
   async getProblems(
     payload: MergePayload<[PaginationDto, GetProblemsQueryDto]>,
   ) {

@@ -1,4 +1,5 @@
 import {
+  LoginDto,
   mergeDtos,
   AuthGuard,
   Pagination,
@@ -9,6 +10,8 @@ import {
   GetProblemsQueryDto,
 } from '../../common';
 import {
+  Req,
+  Res,
   Get,
   Body,
   Post,
@@ -19,16 +22,34 @@ import {
   UseGuards,
   Controller,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { ApiGatewayService } from './api-gateway.service';
-import { LoginDto } from '../../common/dtos/user/user.login.dto';
 
 @Controller('api')
 export class ApiGatewayController {
   constructor(private readonly apiGatewayService: ApiGatewayService) {}
 
   @Post('/login')
-  async login(@Body() dto: LoginDto) {
-    return await this.apiGatewayService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { accessToken, refreshToken, user } =
+      await this.apiGatewayService.login(dto);
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    return user;
   }
 
   @Post('/register')
@@ -57,10 +78,36 @@ export class ApiGatewayController {
   }
 
   @Post()
-  async refresh() {}
+  async refresh(@Req() req: Request, @Res() res: Response) {
+    const { refreshToken } = req.cookies;
+    const { newAccessToken, newRefreshToken } =
+      await this.apiGatewayService.refresh(refreshToken);
+
+    res.cookie('accessToken', newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    return res
+      .sendStatus(200)
+      .json({ message: 'Tokens refreshed successfully' });
+  }
 
   @Post()
-  async logout() {}
+  async logout(@Req() req: Request, @Res() res: Response) {
+    const { accessToken } = req.cookies;
+    await this.apiGatewayService.logout(accessToken);
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    return res.sendStatus(200).json({ message: 'Logged out successfully' });
+  }
 
   @UseGuards(AuthGuard)
   @Get('/problems')
