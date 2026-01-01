@@ -1,14 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { AuthService } from '../auth/auth.service';
-import { CreateUserDto, PaginationDto, UpdateUserDto } from '../../common';
-import { LoginDto } from '../../common/dtos/user/user.login.dto';
+import { GameServiceService } from '../game-service/game-service.service';
+import {
+  LoginDto,
+  MergePayload,
+  CreateUserDto,
+  PaginationDto,
+  UpdateUserDto,
+  GetProblemsQueryDto,
+} from '../../common';
 
 @Injectable()
 export class ApiGatewayService {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly gameService: GameServiceService,
   ) {}
 
   async register(dto: CreateUserDto) {
@@ -33,5 +41,19 @@ export class ApiGatewayService {
 
   async login(dto: LoginDto) {
     return await this.authService.login(dto);
+  }
+
+  async refresh(refreshToken: string) {
+    return await this.authService.refresh(refreshToken);
+  }
+
+  async logout(accessToken: string) {
+    return await this.authService.logout(accessToken);
+  }
+
+  async getProblems(
+    payload: MergePayload<[PaginationDto, GetProblemsQueryDto]>,
+  ) {
+    return await this.gameService.getProblems(payload);
   }
 }
