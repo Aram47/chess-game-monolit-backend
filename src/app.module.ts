@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CommonModule } from '../common';
 import { ConfigModule } from '@nestjs/config';
 import { ApiGatewayModule } from './api-gateway/api-gateway.module';
-import { CommonModule } from '../common';
 
 @Module({
   imports: [

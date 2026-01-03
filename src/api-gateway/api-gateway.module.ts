@@ -4,9 +4,10 @@ import { AuthModule } from '../auth/auth.module';
 import { ApiGatewayService } from './api-gateway.service';
 import { ApiGatewayController } from './api-gateway.controller';
 import { GameServiceModule } from '../game-service/game-service.module';
+import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.module';
 
 @Module({
-  imports: [AuthModule, UserModule, GameServiceModule],
+  imports: [AuthModule, UserModule, GameServiceModule, SnapshotServiceModule],
   controllers: [ApiGatewayController],
   providers: [ApiGatewayService],
 })
