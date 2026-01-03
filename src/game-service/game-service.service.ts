@@ -1,7 +1,12 @@
 import Redis from 'ioredis';
 import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import {
   Theme,
   REDIS_CLIENT,
@@ -12,14 +17,18 @@ import {
   ProblemSession,
   ProblemMoveDto,
   ProblemCategory,
+  CreateProblemDto,
   UserDecoratorDto,
+  ProblemSnapshotDto,
   GetProblemsQueryDto,
 } from '../../common';
 import { Chess } from 'chess.js';
+import { SnapshotServiceService } from '../snapshot-service/snapshot-service.service';
 
 @Injectable()
 export class GameServiceService {
   constructor(
+    private readonly snapshotService: SnapshotServiceService,
     @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
     @InjectRepository(Theme)
     private readonly themeRepository: Repository<Theme>,
@@ -38,9 +47,10 @@ export class GameServiceService {
     const qb = this.chessProblemRepository.createQueryBuilder('problem');
 
     qb.where('problem.isActive = true');
+    qb.innerJoin('problem.category', 'category');
 
     if (payload.categoryId) {
-      qb.andWhere('problem.categoryId = :categoryId', {
+      qb.andWhere('category.id = :categoryId', {
         categoryId: payload.categoryId,
       });
     }
@@ -133,17 +143,29 @@ export class GameServiceService {
     }
 
     const expectedMove = session.solutionMoves[session.userMoves.length];
-    if (move.san !== expectedMove) {
+    if (move.from !== expectedMove.from || move.to !== expectedMove.to) {
       throw new BadRequestException('Wrong move');
     }
 
-    session.userMoves.push(move.san);
+    session.userMoves.push({ from: move.from, to: move.to });
 
     const isSloved = session.userMoves.length === session.solutionMoves.length;
 
     if (isSloved) {
-      await this.finishProblemInternal(session, chess); // will be implemented later
+      const snapshotDto: ProblemSnapshotDto = {
+        userId: String(session.userId),
+        problemId: String(session.problemId),
+        finalFen: chess.fen(),
+        solevedAt: new Date(),
+        durationMs: Date.now() - session.startedAt,
+        moves: session.userMoves,
+        theme: '', // to be fetched
+        level: '', // to be fetched
+      };
+
+      await this.finishProblemInternal(snapshotDto); // will be implemented later
       await this.redisClient.del(key);
+
       return { status: 'solved' };
     }
 
@@ -152,11 +174,39 @@ export class GameServiceService {
     return { status: 'move accepted' };
   }
 
-  async finishProblemInternal(session: ProblemSession, chess: Chess) {
-    // there are we will make snapshot in mongodb
+  async finishProblemInternal(snapshotDto: ProblemSnapshotDto) {
+    await this.snapshotService.storeProblemSnapshot(snapshotDto);
   }
 
   private getSessionKey(userId: number, problemId: number): string {
     return `problem_session:user:${userId}:problem:${problemId}`;
   }
+
+  async createProblem(dto: CreateProblemDto) {
+    // Implementation of creating a new problem
+
+    const category = await this.problemCategoryRepository.findOne({
+      where: {
+        name: dto.category,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Problem category not found');
+    }
+
+    const problem = this.chessProblemRepository.create({
+      fen: dto.fen,
+      solutionMoves: dto.solutionMoves,
+      description: dto.description,
+      difficultyLevel: dto.difficultyLevel,
+      isPayable: dto.isPayable,
+      category,
+      isActive: dto.isActive,
+    });
+
+    return await this.chessProblemRepository.save(problem);
+  }
+
+  async createProblemCategory() {}
 }

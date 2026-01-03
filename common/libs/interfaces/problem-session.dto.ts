@@ -1,8 +1,10 @@
+import { MoveType } from '../types';
+
 export interface ProblemSession {
   userId: number;
   problemId: number;
   fen: string;
-  solutionMoves: string[];
-  userMoves: string[];
+  solutionMoves: MoveType[];
+  userMoves: MoveType[];
   startedAt: number;
 }

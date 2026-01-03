@@ -3,6 +3,7 @@ import {
   AuthGuard,
   Pagination,
   MergePayload,
+  ChessProblem,
   UserDecorator,
   PaginationDto,
   ProblemMoveDto,
@@ -19,11 +20,27 @@ import {
   UseGuards,
   Controller,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBody,
+  ApiQuery,
+  ApiParam,
+  ApiResponse,
+  ApiOperation,
+} from '@nestjs/swagger';
 
+@ApiTags('Game Service')
 @Controller('/problems')
 export class GameServiceController {
   constructor(private readonly gameService: GameServiceService) {}
 
+  @ApiOperation({ summary: 'Get list of problems' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of problems retrieved successfully',
+    type: ChessProblem,
+  })
+  @ApiQuery({ type: GetProblemsQueryDto })
   @UseGuards(AuthGuard)
   @Get('')
   async getProblems(
@@ -32,9 +49,20 @@ export class GameServiceController {
   ) {
     const mergedPayload: MergePayload<[PaginationDto, GetProblemsQueryDto]> =
       mergeDtos<[PaginationDto, GetProblemsQueryDto]>(dto, filters);
-    return this.gameService.getProblems(mergedPayload);
+    return await this.gameService.getProblems(mergedPayload);
   }
 
+  @ApiOperation({ summary: 'Start a problem' })
+  @ApiResponse({
+    status: 200,
+    description: 'Problem started successfully',
+    type: String,
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the problem to start',
+    type: Number,
+  })
   @UseGuards(AuthGuard)
   @Post(':id/start')
   async startProblem(
@@ -45,6 +73,17 @@ export class GameServiceController {
   }
 
   // May be we will havn't need for this api
+  @ApiOperation({ summary: 'Finish a problem' })
+  @ApiResponse({
+    status: 200,
+    description: 'Problem finished successfully',
+    type: String,
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the problem to finish',
+    type: Number,
+  })
   @UseGuards(AuthGuard)
   @Post(':id/finsh')
   async finishProblem(
@@ -54,6 +93,18 @@ export class GameServiceController {
     return await this.gameService.finishProblem(id, userMetaData.sub);
   }
 
+  @ApiOperation({ summary: 'Make a move in a problem' })
+  @ApiResponse({
+    status: 200,
+    description: 'Move made successfully',
+    type: String,
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the problem to make a move in',
+    type: Number,
+  })
+  @ApiBody({ type: ProblemMoveDto })
   @UseGuards(AuthGuard)
   @Post(':id/move')
   async move(

@@ -16,8 +16,8 @@ services:
     depends_on:
       redis:
         condition: service_started
-      # mongo:
-      #   condition: service_started
+      mongo:
+        condition: service_started
       postgres:
         condition: service_healthy
 
@@ -31,14 +31,14 @@ services:
     volumes:
       - redis_data:/data
 
-  # mongo:
-  #   image: mongo:latest
-  #   container_name: mongo
-  #   restart: unless-stopped
-  #   expose:
-  #     - "27017"
-  #   volumes:
-  #     - mongo-data:/data/db
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: unless-stopped
+    expose:
+      - "27017"
+    volumes:
+      - mongo-data:/data/db
 
   postgres:
     image: postgres:16
