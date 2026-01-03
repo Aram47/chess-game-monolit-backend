@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   Theme,
   REDIS_CLIENT,
@@ -10,10 +10,12 @@ import {
   ProblemTheme,
   PaginationDto,
   ProblemSession,
+  ProblemMoveDto,
   ProblemCategory,
   UserDecoratorDto,
   GetProblemsQueryDto,
 } from '../../common';
+import { Chess } from 'chess.js';
 
 @Injectable()
 export class GameServiceService {
@@ -95,6 +97,63 @@ export class GameServiceService {
     );
 
     return { status: 'started' };
+  }
+
+  async finishProblem(problemId: number, userId: number) {
+    // Implementation of finishing the problem
+    const key = this.getSessionKey(userId, problemId);
+    const sessionRaw = await this.redisClient.get(key);
+
+    if (!sessionRaw) {
+      throw new NotFoundException('Problem session not found');
+    }
+
+    await this.redisClient.del(key);
+    return { status: 'finished' };
+  }
+
+  async makeMove(problemId: number, userId: number, dto: ProblemMoveDto) {
+    // Implementation of making a move in the problem session
+    const key = this.getSessionKey(userId, problemId);
+    const sessionRaw = await this.redisClient.get(key);
+    if (!sessionRaw) {
+      throw new NotFoundException('Problem session not found');
+    }
+
+    const session: ProblemSession = JSON.parse(sessionRaw);
+    const chess = new Chess(session.fen);
+
+    for (const move of session.userMoves) {
+      chess.move(move);
+    }
+
+    const move = chess.move(dto.move);
+    if (!move) {
+      throw new BadRequestException('Invalid move');
+    }
+
+    const expectedMove = session.solutionMoves[session.userMoves.length];
+    if (move.san !== expectedMove) {
+      throw new BadRequestException('Wrong move');
+    }
+
+    session.userMoves.push(move.san);
+
+    const isSloved = session.userMoves.length === session.solutionMoves.length;
+
+    if (isSloved) {
+      await this.finishProblemInternal(session, chess); // will be implemented later
+      await this.redisClient.del(key);
+      return { status: 'solved' };
+    }
+
+    await this.redisClient.set(key, JSON.stringify(session), 'EX', 1800);
+
+    return { status: 'move accepted' };
+  }
+
+  async finishProblemInternal(session: ProblemSession, chess: Chess) {
+    // there are we will make snapshot in mongodb
   }
 
   private getSessionKey(userId: number, problemId: number): string {

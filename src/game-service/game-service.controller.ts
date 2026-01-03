@@ -5,11 +5,20 @@ import {
   MergePayload,
   UserDecorator,
   PaginationDto,
+  ProblemMoveDto,
   UserDecoratorDto,
   GetProblemsQueryDto,
 } from '../../common';
 import { GameServiceService } from './game-service.service';
-import { Get, Post, Query, Param, UseGuards, Controller } from '@nestjs/common';
+import {
+  Get,
+  Post,
+  Body,
+  Query,
+  Param,
+  UseGuards,
+  Controller,
+} from '@nestjs/common';
 
 @Controller('/problems')
 export class GameServiceController {
@@ -38,9 +47,20 @@ export class GameServiceController {
   // May be we will havn't need for this api
   @UseGuards(AuthGuard)
   @Post(':id/finsh')
-  async finishProblem(@Param(':id') id: number) {}
+  async finishProblem(
+    @Param(':id') id: number,
+    @UserDecorator() userMetaData: UserDecoratorDto,
+  ) {
+    return await this.gameService.finishProblem(id, userMetaData.sub);
+  }
 
   @UseGuards(AuthGuard)
   @Post(':id/move')
-  async move(@Param(':id') id: number /*@Body() dto: ProblemDtoViaMove */) {}
+  async move(
+    @Param(':id') id: number,
+    @Body() dto: ProblemMoveDto,
+    @UserDecorator() userMetaData: UserDecoratorDto,
+  ) {
+    return await this.gameService.makeMove(id, userMetaData.sub, dto);
+  }
 }
