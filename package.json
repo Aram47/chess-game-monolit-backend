@@ -29,7 +29,7 @@
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/platform-express": "^10.0.0",
-    "@nestjs/swagger": "^11.2.3",
+    "@nestjs/swagger": "^7.4.2",
     "@nestjs/typeorm": "^11.0.0",
     "@types/cookie-parser": "^1.4.10",
     "bcrypt": "^6.0.0",

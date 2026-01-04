@@ -78,7 +78,8 @@ export class GameServiceService {
     }
 
     qb.skip(payload.skip).take(payload.limit);
-
+    console.log('Query:', qb.getQuery());
+    console.log(qb.getQueryAndParameters());
     return await qb.getManyAndCount();
   }
 
@@ -208,13 +209,15 @@ export class GameServiceService {
   }
 
   async createProblemCategory(dto: CreateProblemCategoryDto) {
+    console.log('Create problem category:', dto);
+    console.log(this.datasSource.entityMetadatas.map(m => m.name));
     const category = this.problemCategoryRepository.create({
       name: dto.name,
       description: dto.description,
       isActive: dto.isActive,
       order: 0, // Default order, can be modified later
     });
-
+    console.log('Category:', category);
     return await this.problemCategoryRepository.save(category);
   }
 

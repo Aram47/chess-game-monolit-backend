@@ -131,7 +131,7 @@ export class ApiGatewayController {
     status: 200,
     description: 'Tokens refreshed successfully',
   })
-  @Post()
+  @Post('/refresh')
   async refresh(@Req() req: Request, @Res() res: Response) {
     const { refreshToken } = req.cookies;
     const { newAccessToken, newRefreshToken } =
@@ -149,9 +149,7 @@ export class ApiGatewayController {
       sameSite: 'strict',
     });
 
-    return res
-      .sendStatus(200)
-      .json({ message: 'Tokens refreshed successfully' });
+    return res.status(200).json({ message: 'Tokens refreshed successfully' });
   }
 
   @ApiOperation({ summary: 'User logout' })
@@ -159,12 +157,12 @@ export class ApiGatewayController {
     status: 200,
     description: 'User logged out successfully',
   })
-  @Post()
+  @Post('/logout')
   async logout(@Req() req: Request, @Res() res: Response) {
     const { accessToken } = req.cookies;
     await this.apiGatewayService.logout(accessToken);
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
-    return res.sendStatus(200).json({ message: 'Logged out successfully' });
+    return res.status(200).json({ message: 'Logged out successfully' });
   }
 }

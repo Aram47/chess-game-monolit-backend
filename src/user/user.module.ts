@@ -6,19 +6,6 @@ import { User, UserRelatedData, ENV_VARIABLES } from '../../common';
 
 @Module({
   imports: [
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>(ENV_VARIABLES.POSTGRES_HOST),
-        port: configService.get<number>(ENV_VARIABLES.POSTGRES_PORT),
-        username: configService.get<string>(ENV_VARIABLES.POSTGRES_USER),
-        password: configService.get<string>(ENV_VARIABLES.POSTGRES_PASSWORD),
-        database: configService.get<string>(ENV_VARIABLES.POSTGRES_DB),
-        entities: [User, UserRelatedData],
-        synchronize: true, // for development
-      }),
-    }),
     TypeOrmModule.forFeature([User, UserRelatedData]),
   ],
   providers: [UserService],

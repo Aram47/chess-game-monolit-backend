@@ -15,19 +15,6 @@ import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.modu
 
 @Module({
   imports: [
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>(ENV_VARIABLES.POSTGRES_HOST),
-        port: configService.get<number>(ENV_VARIABLES.POSTGRES_PORT),
-        username: configService.get<string>(ENV_VARIABLES.POSTGRES_USER),
-        password: configService.get<string>(ENV_VARIABLES.POSTGRES_PASSWORD),
-        database: configService.get<string>(ENV_VARIABLES.POSTGRES_DB),
-        entities: [Theme, ChessProblem, ProblemTheme, ProblemCategory],
-        synchronize: true, // for development
-      }),
-    }),
     TypeOrmModule.forFeature([
       Theme,
       ChessProblem,
@@ -36,6 +23,7 @@ import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.modu
     ]),
     RedisModule,
     SnapshotServiceModule,
+
   ],
   controllers: [GameServiceController],
   providers: [GameServiceService],

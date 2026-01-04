@@ -1,0 +1,61 @@
+---
+description: Design system & visual consistency rule — Chess web app
+globs:
+  - "frontend/**/*.{ts,tsx,js,jsx}"
+  - "src/**/*.{ts,tsx,js,jsx}"
+alwaysApply: true
+---
+
+You are enforcing a consistent, premium-feeling design system for a chess web application.
+
+## Visual consistency rules (non-negotiable)
+
+### 1) Design system first
+- Reuse existing UI components (shadcn/ui, shared components).
+- Do NOT create ad-hoc buttons, dialogs, inputs, or cards.
+- If a new UI pattern is needed:
+  - Create it as a reusable component
+  - Place it in a shared/ui or components directory
+- Avoid inline styles unless absolutely necessary.
+
+### 2) Typography & spacing
+- Use a clear hierarchy:
+  - Page title → section title → body → secondary text
+- Spacing must be consistent:
+  - Prefer Tailwind spacing scale (no arbitrary values).
+- Avoid dense layouts; chess users need visual clarity.
+
+### 3) Color usage
+- Use color intentionally:
+  - Primary → main actions
+  - Secondary → secondary actions
+  - Destructive → irreversible actions
+- Do NOT rely on color alone to convey meaning (use icons/text).
+- Premium features may use subtle accent colors but must remain tasteful.
+
+### 4) Buttons & actions
+- One primary action per view whenever possible.
+- Button variants must be consistent:
+  - Primary / Secondary / Ghost / Destructive
+- Disable buttons during async actions; never allow double submits.
+
+### 5) Chess-specific UI consistency
+- Puzzle controls, game controls, and analysis controls must feel related:
+  - Same button placement logic
+  - Same iconography
+- Board-related panels (moves, evaluation, hints) should follow a predictable layout.
+
+### 6) Animations & motion
+- Use motion sparingly and purposefully:
+  - Feedback (move played, success/failure)
+  - Transitions (dialogs, drawers)
+- Respect reduced-motion preferences.
+- Avoid distracting animations during gameplay.
+
+### 7) Output expectations
+- All UI must look production-ready.
+- No placeholder text, lorem ipsum, or unfinished visuals.
+- Must look acceptable on:
+  - Desktop
+  - Tablet
+  - Mobile

@@ -47,8 +47,10 @@ export class GameServiceController {
     @Pagination() dto: PaginationDto,
     @Query() filters: GetProblemsQueryDto,
   ) {
+    console.log('Get problems:', dto, filters);
     const mergedPayload: MergePayload<[PaginationDto, GetProblemsQueryDto]> =
       mergeDtos<[PaginationDto, GetProblemsQueryDto]>(dto, filters);
+    console.log('Merged payload:', mergedPayload);
     return await this.gameService.getProblems(mergedPayload);
   }
 
