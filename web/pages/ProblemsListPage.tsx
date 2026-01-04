@@ -32,9 +32,7 @@ export function ProblemsListPage() {
   });
 
   const handleProblemClick = (problemId: number) => {
-    // Navigate to problem detail if endpoint exists
-    // For now, just log it
-    console.log('Problem clicked:', problemId);
+    navigate(`/problems/${problemId}`);
   };
 
   const handleCreateNew = () => {

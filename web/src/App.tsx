@@ -6,6 +6,7 @@ import { HomePage } from '../pages/HomePage';
 import { ProblemsListPage } from '../pages/ProblemsListPage';
 import { ProblemsCreatePage } from '../pages/ProblemsCreatePage';
 import { ProblemCategoryCreatePage } from '../pages/ProblemCategoryCreatePage';
+import { ProblemPreviewPage } from '../pages/ProblemPreviewPage';
 import { ROUTES } from '../lib/constants/routes';
 
 const queryClient = new QueryClient({
@@ -27,6 +28,7 @@ function App() {
           <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
           <Route path={ROUTES.PROBLEMS} element={<ProblemsListPage />} />
           <Route path={ROUTES.PROBLEMS_NEW} element={<ProblemsCreatePage />} />
+          <Route path="/problems/:id" element={<ProblemPreviewPage />} />
           <Route path={ROUTES.PROBLEM_CATEGORY_NEW} element={<ProblemCategoryCreatePage />} />
         </Routes>
       </BrowserRouter>

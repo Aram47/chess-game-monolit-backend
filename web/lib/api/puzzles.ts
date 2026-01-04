@@ -27,7 +27,7 @@ export interface ProblemTheme {
 export interface ChessProblem {
   id: number;
   fen: string;
-  solutionMoves: string[];
+  solutionMoves: Array<{ from: string; to: string }>;
   description: string;
   difficultyLevel: ProblemDifficultyLevel;
   isPayable: boolean;
@@ -192,6 +192,24 @@ export async function createProblem(
   }
 
   return response.json();
+}
+
+/**
+ * Get a single problem by ID
+ * Note: Since there's no dedicated endpoint, we fetch from the list
+ * In the future, this should use GET /problems/:id
+ */
+export async function getProblemById(id: number): Promise<ChessProblem> {
+  // Fetch all problems and find by ID
+  // This is not ideal but works until a dedicated endpoint is added
+  const response = await getProblems({ limit: 1000 });
+  const problem = response.data.find((p) => p.id === id);
+  
+  if (!problem) {
+    throw new Error(`Problem with ID ${id} not found`);
+  }
+  
+  return problem;
 }
 
 export interface CreateProblemCategoryRequest {

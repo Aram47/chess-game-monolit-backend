@@ -9,6 +9,7 @@ export const ROUTES = {
   PUZZLES: '/puzzles',
   PROBLEMS: '/problems',
   PROBLEMS_NEW: '/problems/new',
+  PROBLEM_PREVIEW: '/problems/:id',
   PROBLEM_CATEGORY_NEW: '/problems/categories/new',
   PLAY: '/play',
   ANALYSIS: '/analysis',
