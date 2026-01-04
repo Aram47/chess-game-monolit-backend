@@ -207,9 +207,42 @@ export class GameServiceService {
     return await this.chessProblemRepository.save(problem);
   }
 
-  async createProblemCategory(dto: CreateProblemCategoryDto) {}
+  async createProblemCategory(dto: CreateProblemCategoryDto) {
+    const category = this.problemCategoryRepository.create({
+      name: dto.name,
+      description: dto.description,
+      isActive: dto.isActive,
+      order: 0, // Default order, can be modified later
+    });
 
-  async deleteChessProblemById(id: number) {}
+    return await this.problemCategoryRepository.save(category);
+  }
 
-  async deleteProblemCategoryById(id: number) {}
+  async deleteChessProblemById(id: number) {
+    const problem = await this.chessProblemRepository.findOne({
+      where: { id },
+    });
+
+    if (!problem) {
+      throw new NotFoundException('Chess problem not found');
+    }
+
+    await this.chessProblemRepository.remove(problem);
+
+    return problem;
+  }
+
+  async deleteProblemCategoryById(id: number) {
+    const category = await this.problemCategoryRepository.findOne({
+      where: { id },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Problem category not found');
+    }
+
+    await this.problemCategoryRepository.remove(category);
+
+    return category;
+  }
 }
