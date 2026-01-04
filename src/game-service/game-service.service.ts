@@ -21,6 +21,7 @@ import {
   UserDecoratorDto,
   ProblemSnapshotDto,
   GetProblemsQueryDto,
+  CreateProblemCategoryDto,
 } from '../../common';
 import { Chess } from 'chess.js';
 import { SnapshotServiceService } from '../snapshot-service/snapshot-service.service';
@@ -183,8 +184,6 @@ export class GameServiceService {
   }
 
   async createProblem(dto: CreateProblemDto) {
-    // Implementation of creating a new problem
-
     const category = await this.problemCategoryRepository.findOne({
       where: {
         name: dto.category,
@@ -208,5 +207,9 @@ export class GameServiceService {
     return await this.chessProblemRepository.save(problem);
   }
 
-  async createProblemCategory() {}
+  async createProblemCategory(dto: CreateProblemCategoryDto) {}
+
+  async deleteChessProblemById(id: number) {}
+
+  async deleteProblemCategoryById(id: number) {}
 }

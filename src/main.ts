@@ -2,6 +2,7 @@ import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import * as cookieParser from 'cookie-parser';
 import { LoggingInterceptor } from '../common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -15,6 +16,15 @@ async function bootstrap() {
 
   app.use(cookieParser());
   app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  const logger = new Logger(bootstrap.name);
 
   if (process.env.NODE_ENV === 'development') {
     const config = new DocumentBuilder()
@@ -23,6 +33,7 @@ async function bootstrap() {
       .setVersion('1.0')
       .addTag('chess-game-monolith')
       .build();
+
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('swagger', app, document, {
       jsonDocumentUrl: 'swagger/json',
@@ -30,12 +41,13 @@ async function bootstrap() {
         persistAuthorization: true,
       },
     });
-    console.log(
+
+    logger.log(
       `Swagger available at http://localhost:${process.env.PORT ?? 3000}/swagger`,
     );
   }
   await app.listen(process.env.PORT ?? 3000, () => {
-    console.log(`PORT: ${process.env.PORT}`);
+    logger.log(`PORT: ${process.env.PORT}`);
   });
 }
 bootstrap();
