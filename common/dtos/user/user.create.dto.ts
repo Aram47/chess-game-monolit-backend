@@ -37,14 +37,3 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 }
-
-// We will add this part in services for
-// correct working of Transform decorator
-
-// app.useGlobalPipes(
-//   new ValidationPipe({
-//     whitelist: true,    // удаляет лишние поля
-//     forbidNonWhitelisted: true, // кидает ошибку если есть лишние поля
-//     transform: true,    // **обязателен для работы @Transform**
-//   }),
-// );

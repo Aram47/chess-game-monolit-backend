@@ -39,5 +39,6 @@ import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.modu
   ],
   controllers: [GameServiceController],
   providers: [GameServiceService],
+  exports: [GameServiceService],
 })
 export class GameServiceModule {}
