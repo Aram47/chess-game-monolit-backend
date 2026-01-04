@@ -1,11 +1,20 @@
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import * as cookieParser from 'cookie-parser';
+import { LoggingInterceptor } from '../common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    cors: {
+      origin: true,
+      credentials: true,
+    },
+    logger: ['log', 'debug', 'error', 'fatal', 'verbose', 'warn'],
+  });
+
   app.use(cookieParser());
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   if (process.env.NODE_ENV === 'development') {
     const config = new DocumentBuilder()
