@@ -1,0 +1,122 @@
+---
+description: UX rule — Chess app frontend (puzzles, online play, progress, premium)
+globs:
+  - "frontend/**/*.{ts,tsx,js,jsx}"
+  - "src/**/*.{ts,tsx,js,jsx}"
+alwaysApply: true
+---
+
+You are a Product-focused UX-minded Frontend Engineer building a modern chess web app.
+This app includes: puzzle training (difficulty/theme), online play, user progress, and premium/pro gated tools.
+
+# UX Principles (must follow)
+
+## 1) Fast feedback always
+- Every async action must show immediate feedback:
+  - Loading: skeleton/spinner + disabled buttons + optimistic UI when safe
+  - Success: subtle confirmation (toast/snackbar)
+  - Error: actionable message + retry
+- Never leave the user wondering if something happened.
+
+## 2) Clear states on every screen
+For each page/component, ALWAYS implement:
+- Loading state
+- Empty state (with helpful CTA)
+- Error state (with retry + explanation)
+- Normal state
+Do not ship UI that only works in the “happy path”.
+
+## 3) Puzzle solving flow must feel like a trainer
+- Puzzle card must show:
+  - Theme + difficulty
+  - Estimated length (if available) and rating/level
+  - “Resume last puzzle” if user has progress
+- Solve flow:
+  - Start → Attempt → Feedback (correct/incorrect) → Show best line/idea → Next
+- If incorrect:
+  - Explain minimally (“tactical motif” / “why move fails”) + allow “Try again” and “Show solution”
+- Keep controls consistent:
+  - Primary: “Next puzzle / Continue”
+  - Secondary: “Hint / Show solution / Analyze” (gated if premium)
+
+## 4) Online play must handle real-world network issues
+- Always show connection status (Connected / Reconnecting / Disconnected).
+- On reconnect:
+  - Attempt automatic restore of game state
+  - Provide “Reconnect” button if needed
+- Never lose the user silently: show what happened and how to recover.
+
+## 5) Premium gating should be friendly and transparent
+- Never hard-block with cryptic 403 errors.
+- If feature is locked:
+  - Show feature preview + benefits
+  - Show upgrade CTA
+  - Provide fallback path (e.g., basic analysis vs advanced)
+- Keep free users productive; don’t punish exploration.
+
+## 6) Accessibility and input ergonomics
+- Keyboard support for core actions (puzzle controls, dialogs, navigation).
+- Icon-only buttons must have aria-label.
+- Respect reduced motion.
+- Mobile-friendly: hit targets, spacing, no hover-only actions.
+
+## 7) Consistent, calm UI language
+- Use short, clear microcopy:
+  - “Try again”, “Show hint”, “Solution”, “Reconnect”, “Upgrade”
+- Avoid technical backend phrasing (“403”, “invalid payload”) in UI.
+- Errors should suggest a next step.
+
+## 8) Chessboard UX rules (critical)
+
+- The chessboard MUST rely on `chess.js` as the single source of truth for:
+  - Legal move generation
+  - Move validation
+  - Game state (FEN, turn, check/checkmate, draw)
+  - History and undo/redo logic
+- Do NOT re-implement chess rules or validation manually.
+
+### Board behavior
+- UI must reflect state from `chess.js`, not duplicate logic.
+- Illegal moves must be rejected using `chess.js` validation and immediately reflected in UI.
+- Board updates should be minimal:
+  - Avoid re-rendering the entire board when only position changes.
+  - Prefer updating by FEN changes or move diffs.
+- Visual cues (derived from chess.js state):
+  - Last move highlight
+  - Legal move highlights (optional toggle)
+  - Check indicator
+  - Turn indicator
+
+### Puzzle-specific rules
+- Puzzle expected moves must be validated against:
+  - `chess.js` legality
+  - Puzzle solution line from backend
+- On incorrect move:
+  - Show immediate visual feedback
+  - Allow retry, hint, or solution (based on access level)
+
+### Input ergonomics
+- Support drag-and-drop AND click-to-move.
+- Must work reliably on:
+  - Mouse
+  - Touch (mobile/tablet)
+- No hover-only interactions.
+
+### Performance
+- Chessboard rendering must be optimized:
+  - Memoize square components where appropriate
+  - Avoid recomputing legal moves unnecessarily
+
+
+## 9) Progress and motivation hooks
+- Always show user progress where it matters:
+  - Streak, solved count, accuracy, rating/level, recent themes
+- Encourage continuity:
+  - “Continue training” entry point
+  - “Today’s goal” (optional)
+
+## 10) Output expectations when coding
+- Produce complete code changes (full files).
+- Use existing UI primitives (shadcn/ui if present).
+- Must include loading/error/empty states and responsive layout.
+- If backend contracts are missing, define typed interfaces + safe fallbacks; don’t leave TODOs.

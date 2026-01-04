@@ -28,11 +28,11 @@ export class ChessProblem {
   fen: string;
 
   @ApiProperty({
-    example: ['e4', 'e5', 'Nf3', 'Nc6'],
+    example: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }, { from: 'g1', to: 'f3' }, { from: 'b8', to: 'c6' }],
     description: 'Sequence of moves that solve the problem',
-    type: [String],
+    type: [Object],
   })
-  @Column({ type: 'simple-array' })
+  @Column({ type: 'json', nullable: true })
   solutionMoves: MoveType[];
 
   @ApiProperty({

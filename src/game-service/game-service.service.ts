@@ -78,7 +78,6 @@ export class GameServiceService {
     }
 
     qb.skip(payload.skip).take(payload.limit);
-
     return await qb.getManyAndCount();
   }
 
@@ -214,7 +213,6 @@ export class GameServiceService {
       isActive: dto.isActive,
       order: 0, // Default order, can be modified later
     });
-
     return await this.problemCategoryRepository.save(category);
   }
 

@@ -16,13 +16,13 @@ async function bootstrap() {
 
   app.use(cookieParser());
   app.useGlobalInterceptors(new LoggingInterceptor());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  // app.useGlobalPipes(
+  //   new ValidationPipe({
+  //     whitelist: true,
+  //     forbidNonWhitelisted: true,
+  //     transform: true,
+  //   }),
+  // );
 
   const logger = new Logger(bootstrap.name);
 

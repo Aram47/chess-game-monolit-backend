@@ -49,7 +49,15 @@ export class GameServiceController {
   ) {
     const mergedPayload: MergePayload<[PaginationDto, GetProblemsQueryDto]> =
       mergeDtos<[PaginationDto, GetProblemsQueryDto]>(dto, filters);
-    return await this.gameService.getProblems(mergedPayload);
+    const [problems, total] = await this.gameService.getProblems(mergedPayload);
+    
+    // Return paginated response format expected by frontend
+    return {
+      data: problems,
+      total,
+      page: mergedPayload.page || 1,
+      limit: mergedPayload.limit || 10,
+    };
   }
 
   @ApiOperation({ summary: 'Start a problem' })
