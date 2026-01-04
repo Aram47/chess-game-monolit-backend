@@ -109,8 +109,20 @@ export async function getProblems(
 
   const data = await response.json();
   
-  // Handle both array response and paginated response
-  if (Array.isArray(data)) {
+  // Handle tuple response from backend: [entities, count]
+  // This is a legacy format that should be removed once all endpoints are updated
+  if (Array.isArray(data) && data.length === 2 && Array.isArray(data[0]) && typeof data[1] === 'number') {
+    const [entities, total] = data;
+    return {
+      data: entities,
+      total,
+      page: query.page || 1,
+      limit: query.limit || 10,
+    };
+  }
+  
+  // Handle simple array response (legacy)
+  if (Array.isArray(data) && (data.length === 0 || !Array.isArray(data[0]))) {
     return {
       data,
       total: data.length,
@@ -119,6 +131,7 @@ export async function getProblems(
     };
   }
 
+  // Handle proper paginated response: { data, total, page, limit }
   return data;
 }
 
