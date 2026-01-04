@@ -9,16 +9,24 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { RotateCcw, Copy, Play, Undo2, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Copy, Play, Undo2, X } from 'lucide-react';
 import {
   createChessFromFen,
-  getFen,
-  getSideToMove,
   makeMove,
   moveToUCI,
   undoMove,
-  resetBoard,
 } from '../../lib/chess/utils';
+import {
+  createEmptyPosition,
+  positionToFen,
+  fenToPosition,
+  placePiece,
+  removePiece,
+  movePiece,
+  type BoardPosition,
+  type PieceType,
+} from '../../lib/chess/position-editor';
 import { ProblemForm } from './ProblemForm';
 import type { CreateProblemRequest } from '../../lib/api/puzzles';
 
@@ -37,49 +45,73 @@ export function ProblemBuilder({
   error,
   onOpenCategoryDialog,
 }: ProblemBuilderProps) {
-  const [chess] = useState(() => createChessFromFen());
-  const [fen, setFen] = useState(chess.fen());
+  // Position editor state - manage position as BoardPosition object
+  const [boardPosition, setBoardPositionState] = useState<BoardPosition>(createEmptyPosition());
+  const [sideToMove, setSideToMove] = useState<'w' | 'b'>('w');
   const [orientation, setOrientation] = useState<BoardOrientation>('white');
   const [isRecording, setIsRecording] = useState(false);
   const [solutionMoves, setSolutionMoves] = useState<Array<{ from: string; to: string }>>([]);
   const [solutionChess] = useState(() => createChessFromFen());
-  const [boardPosition, setBoardPosition] = useState(chess.fen());
   const [fenInput, setFenInput] = useState('');
   const [showFenError, setShowFenError] = useState(false);
 
-  const sideToMove = getSideToMove(fen);
+  // Convert board position to FEN for form submission
+  const fen = positionToFen(boardPosition, sideToMove);
 
   // Handle piece drop on main board
   const handleDrop = useCallback(
-    ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string }) => {
+    ({ sourceSquare, targetSquare, piece }: { sourceSquare: string; targetSquare: string; piece: string }) => {
       if (isSubmitting) return;
 
-      // If recording solution, handle on solution board
+      // If recording solution, handle on solution board (use chess.js for legal moves)
       if (isRecording) {
         const move = makeMove(solutionChess, sourceSquare, targetSquare);
         if (move) {
           setSolutionMoves((prev) => [...prev, moveToUCI(move)]);
-          setBoardPosition(solutionChess.fen());
         }
         return;
       }
 
-      // Otherwise, handle on main board
-      const move = makeMove(chess, sourceSquare, targetSquare);
-      if (move) {
-        const newFen = getFen(chess);
-        setFen(newFen);
-        setBoardPosition(newFen);
+      // Position editor mode: handle piece placement/movement
+      if (sourceSquare === 'spare') {
+        // Piece dropped from spare pieces area
+        const pieceType = piece as PieceType;
+        setBoardPositionState((prev) => placePiece(prev, targetSquare, pieceType));
+      } else if (targetSquare && targetSquare !== 'offboard' && targetSquare.length === 2) {
+        // Piece moved on board (valid square like 'e4')
+        setBoardPositionState((prev) => movePiece(prev, sourceSquare, targetSquare));
+      } else {
+        // Piece dragged off board - remove it
+        setBoardPositionState((prev) => removePiece(prev, sourceSquare));
       }
     },
-    [chess, solutionChess, isRecording, isSubmitting]
+    [solutionChess, isRecording, isSubmitting]
   );
 
-  const handleResetBoard = () => {
-    resetBoard(chess);
-    const newFen = getFen(chess);
-    setFen(newFen);
-    setBoardPosition(newFen);
+  // Handle square click to remove pieces (alternative to dragging off board)
+  const handleSquareClick = useCallback(
+    (square: string) => {
+      if (isSubmitting || isRecording) return;
+
+      // If square has a piece, remove it
+      if (boardPosition[square]) {
+        setBoardPositionState((prev) => removePiece(prev, square));
+      }
+    },
+    [boardPosition, isSubmitting, isRecording]
+  );
+
+  const handleStartPosition = () => {
+    // Set to standard starting position
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const { position, sideToMove: stm } = fenToPosition(startFen);
+    setBoardPositionState(position);
+    setSideToMove(stm);
+  };
+
+  const handleClearBoard = () => {
+    // Clear all pieces
+    setBoardPositionState(createEmptyPosition());
   };
 
   const handleSetFromFen = () => {
@@ -89,10 +121,9 @@ export function ProblemBuilder({
     }
 
     try {
-      chess.load(fenInput);
-      const newFen = getFen(chess);
-      setFen(newFen);
-      setBoardPosition(newFen);
+      const { position, sideToMove: stm } = fenToPosition(fenInput);
+      setBoardPositionState(position);
+      setSideToMove(stm);
       setFenInput('');
       setShowFenError(false);
     } catch {
@@ -106,9 +137,9 @@ export function ProblemBuilder({
 
   const handleStartRecording = () => {
     // Load current position into solution board
-    solutionChess.load(fen);
+    const currentFen = positionToFen(boardPosition, sideToMove);
+    solutionChess.load(currentFen);
     setSolutionMoves([]);
-    setBoardPosition(solutionChess.fen());
     setIsRecording(true);
   };
 
@@ -119,14 +150,13 @@ export function ProblemBuilder({
   const handleUndoSolutionMove = () => {
     if (solutionMoves.length > 0 && undoMove(solutionChess)) {
       setSolutionMoves((prev) => prev.slice(0, -1));
-      setBoardPosition(solutionChess.fen());
     }
   };
 
   const handleClearSolution = () => {
-    solutionChess.load(fen);
+    const currentFen = positionToFen(boardPosition, sideToMove);
+    solutionChess.load(currentFen);
     setSolutionMoves([]);
-    setBoardPosition(fen);
     setIsRecording(false);
   };
 
@@ -163,9 +193,13 @@ export function ProblemBuilder({
               <div className="flex flex-col items-center space-y-4">
                 <div className="w-full max-w-[500px]">
                   <Chessboard
-                    position={boardPosition}
+                    position={isRecording ? solutionChess.fen() : fen}
                     onDrop={handleDrop}
+                    onSquareClick={!isRecording ? handleSquareClick : undefined}
                     orientation={orientation}
+                    sparePieces={!isRecording}
+                    dropOffBoard={!isRecording ? 'trash' : undefined}
+                    draggable={true}
                     boardStyle={{
                       borderRadius: '4px',
                       boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
@@ -176,18 +210,40 @@ export function ProblemBuilder({
                 <div className="w-full space-y-2">
                   <div className="flex items-center gap-2">
                     <Label className="text-sm font-medium">Side to move:</Label>
-                    <span className="text-sm capitalize">{sideToMove}</span>
+                    <Select
+                      value={sideToMove}
+                      onValueChange={(value) => {
+                        if (value === 'w' || value === 'b') {
+                          setSideToMove(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[120px]" disabled={isSubmitting || isRecording}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="w">White</SelectItem>
+                        <SelectItem value="b">Black</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleResetBoard}
-                      disabled={isSubmitting}
+                      onClick={handleStartPosition}
+                      disabled={isSubmitting || isRecording}
                     >
-                      <RotateCcw className="h-4 w-4 mr-1" />
-                      Reset
+                      Start Position
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearBoard}
+                      disabled={isSubmitting || isRecording}
+                    >
+                      Clear Board
                     </Button>
                     <Button
                       variant="outline"
@@ -313,7 +369,7 @@ export function ProblemBuilder({
           <ProblemForm
             fen={fen}
             solutionMoves={solutionMoves}
-            sideToMove={sideToMove}
+            sideToMove={sideToMove === 'w' ? 'white' : 'black'}
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
             error={error}

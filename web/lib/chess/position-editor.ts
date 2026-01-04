@@ -3,7 +3,6 @@
  */
 
 import { Chess } from 'chess.js';
-import { getEmptyFen } from './utils';
 
 export type PieceType = 'wP' | 'wR' | 'wN' | 'wB' | 'wQ' | 'wK' | 'bP' | 'bR' | 'bN' | 'bB' | 'bQ' | 'bK';
 export type Square = string;
