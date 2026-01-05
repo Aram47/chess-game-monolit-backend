@@ -21,21 +21,6 @@ services:
       postgres:
         condition: service_healthy
 
-  # web:
-  #   image: node:latest
-  #   container_name: chess-web
-  #   working_dir: /app/web
-  #   environment:
-  #     - CHOKIDAR_USEPOLLING=true
-  #   volumes:
-  #     - .:/app
-  #     - /app/web/node_modules
-  #   ports:
-  #     - "5173:5173"
-  #   command: sh -lc "npm ci && npm run dev -- --host 0.0.0.0"
-  #   depends_on:
-  #     - chess-server
-
   redis:
     image: redis:latest
     container_name: redis
