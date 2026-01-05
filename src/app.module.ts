@@ -1,5 +1,14 @@
 import { Module } from '@nestjs/common';
-import { CommonModule, ENV_VARIABLES, ProblemTheme, ProblemCategory, ChessProblem, Theme, User, UserRelatedData } from '../common';
+import {
+  User,
+  Theme,
+  CommonModule,
+  ProblemTheme,
+  ChessProblem,
+  ENV_VARIABLES,
+  ProblemCategory,
+  UserRelatedData,
+} from '../common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -21,7 +30,14 @@ import { GameServiceModule } from './game-service/game-service.module';
         username: configService.get<string>(ENV_VARIABLES.POSTGRES_USER),
         password: configService.get<string>(ENV_VARIABLES.POSTGRES_PASSWORD),
         database: configService.get<string>(ENV_VARIABLES.POSTGRES_DB),
-        entities: [Theme, ChessProblem, ProblemTheme, ProblemCategory, User, UserRelatedData],
+        entities: [
+          User,
+          Theme,
+          ChessProblem,
+          ProblemTheme,
+          ProblemCategory,
+          UserRelatedData,
+        ],
         synchronize: true, // for development
       }),
     }),

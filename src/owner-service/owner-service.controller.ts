@@ -1,35 +1,47 @@
 import { OwnerServiceService } from './owner-service.service';
 import {
   Role,
+  User,
   Roles,
   AuthGuard,
+  Pagination,
   RolesGuard,
   ChessProblem,
+  PaginationDto,
+  CreateUserDto,
+  UpdateUserDto,
+  ProblemCategory,
   CreateProblemDto,
   CreateProblemCategoryDto,
-  ProblemCategory,
 } from '../../common';
 import {
   ApiTags,
   ApiBody,
+  ApiQuery,
   ApiParam,
   ApiResponse,
   ApiOperation,
 } from '@nestjs/swagger';
 import {
+  Get,
   Post,
   Body,
   Param,
+  Patch,
   Delete,
-  Controller,
   UseGuards,
+  Controller,
 } from '@nestjs/common';
+import { UserService } from '../user/user.service';
 
 @ApiTags('Owner Service')
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('owner-service')
 export class OwnerServiceController {
-  constructor(private readonly ownerServiceService: OwnerServiceService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly ownerServiceService: OwnerServiceService,
+  ) {}
 
   @ApiOperation({ summary: 'Create a new chess problem' })
   @ApiResponse({
@@ -91,12 +103,91 @@ export class OwnerServiceController {
     return this.ownerServiceService.deleteProblemCategoryById(id);
   }
 
-  /**
-   * @Important
-   * Here we will add User CRUD operations in the future
-   * Using UserService via OwnerServiceService
-   * Here we can set which role have user
-   * Only Super Admin can access these endpoints
-   * Because only Super Admin can set roles and permissions
-   */
+  @ApiOperation({ summary: 'Create user with the specified fields' })
+  @ApiResponse({
+    status: 201,
+    description: 'User is successfully created',
+    type: User,
+  })
+  @ApiBody({ type: CreateUserDto, description: 'User creation data' })
+  @Roles(Role.SUPER_ADMIN)
+  @Post('/create_user')
+  async createUser(@Body() dto: CreateUserDto) {
+    return await this.userService.createUser(dto);
+  }
+
+  @ApiOperation({ summary: 'Delete a user by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User deleted successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID of the user to delete',
+  })
+  @Roles(Role.SUPER_ADMIN)
+  @Delete('/delete_user/:id')
+  async deleteUserById(@Param('id') id: number) {
+    return await this.userService.deleteUserById(id);
+  }
+
+  @ApiOperation({ summary: 'Update a user by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    type: User,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID of the user to update',
+  })
+  @ApiBody({ type: UpdateUserDto, description: 'User update data' })
+  @Roles(Role.SUPER_ADMIN)
+  @Patch('/update_user/:id')
+  async updateUserById(@Param('id') id: number, @Body() dto: UpdateUserDto) {
+    return await this.userService.updateUserById(id, dto);
+  }
+
+  @ApiOperation({ summary: 'Get a user by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User retrieved successfully',
+    type: User,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID of the user',
+  })
+  @Roles(Role.SUPER_ADMIN)
+  @Get('/get_user/:id')
+  async getUserById(@Param('id') id: number) {
+    return await this.userService.getUserById(id);
+  }
+
+  @ApiOperation({ summary: 'Get paginated list of users' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of users retrieved successfully',
+  })
+  @ApiQuery({ type: PaginationDto })
+  @Roles(Role.SUPER_ADMIN)
+  @Get('/get_users')
+  async getUsers(@Pagination() dto: PaginationDto) {
+    return await this.userService.getUsers(dto);
+  }
 }
