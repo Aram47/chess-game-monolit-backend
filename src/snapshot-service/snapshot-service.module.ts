@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import {
+  GameSnapshot,
   ENV_VARIABLES,
   ProblemSnapshot,
+  GameSnapshotSchema,
   ProblemSnapshotSchema,
 } from '../../common';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +22,7 @@ import { SnapshotServiceController } from './snapshot-service.controller';
       }),
     }),
     MongooseModule.forFeature([
+      { name: GameSnapshot.name, schema: GameSnapshotSchema },
       { name: ProblemSnapshot.name, schema: ProblemSnapshotSchema },
     ]),
   ],

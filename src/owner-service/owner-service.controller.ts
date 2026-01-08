@@ -32,16 +32,12 @@ import {
   UseGuards,
   Controller,
 } from '@nestjs/common';
-import { UserService } from '../user/user.service';
 
 @ApiTags('Owner Service')
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('owner-service')
 export class OwnerServiceController {
-  constructor(
-    private readonly userService: UserService,
-    private readonly ownerServiceService: OwnerServiceService,
-  ) {}
+  constructor(private readonly ownerServiceService: OwnerServiceService) {}
 
   @ApiOperation({ summary: 'Create a new chess problem' })
   @ApiResponse({
@@ -113,7 +109,7 @@ export class OwnerServiceController {
   @Roles(Role.SUPER_ADMIN)
   @Post('/create_user')
   async createUser(@Body() dto: CreateUserDto) {
-    return await this.userService.createUser(dto);
+    return await this.ownerServiceService.createUser(dto);
   }
 
   @ApiOperation({ summary: 'Delete a user by ID' })
@@ -133,7 +129,7 @@ export class OwnerServiceController {
   @Roles(Role.SUPER_ADMIN)
   @Delete('/delete_user/:id')
   async deleteUserById(@Param('id') id: number) {
-    return await this.userService.deleteUserById(id);
+    return await this.ownerServiceService.deleteUserById(id);
   }
 
   @ApiOperation({ summary: 'Update a user by ID' })
@@ -155,7 +151,7 @@ export class OwnerServiceController {
   @Roles(Role.SUPER_ADMIN)
   @Patch('/update_user/:id')
   async updateUserById(@Param('id') id: number, @Body() dto: UpdateUserDto) {
-    return await this.userService.updateUserById(id, dto);
+    return await this.ownerServiceService.updateUserById(id, dto);
   }
 
   @ApiOperation({ summary: 'Get a user by ID' })
@@ -176,7 +172,7 @@ export class OwnerServiceController {
   @Roles(Role.SUPER_ADMIN)
   @Get('/get_user/:id')
   async getUserById(@Param('id') id: number) {
-    return await this.userService.getUserById(id);
+    return await this.ownerServiceService.getUserById(id);
   }
 
   @ApiOperation({ summary: 'Get paginated list of users' })
@@ -188,6 +184,6 @@ export class OwnerServiceController {
   @Roles(Role.SUPER_ADMIN)
   @Get('/get_users')
   async getUsers(@Pagination() dto: PaginationDto) {
-    return await this.userService.getUsers(dto);
+    return await this.ownerServiceService.getUsers(dto);
   }
 }
