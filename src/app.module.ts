@@ -9,11 +9,14 @@ import {
   ProblemCategory,
   UserRelatedData,
 } from '../common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { GameEngineModule } from './game-engine/game-engine.module';
+import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { GameServiceModule } from './game-service/game-service.module';
+import { SocketServiceModule } from './socket-service/socket-service.module';
+import { NotificationsModule } from './notification-service/notification.module';
 
 @Module({
   imports: [
@@ -41,10 +44,13 @@ import { GameServiceModule } from './game-service/game-service.module';
         synchronize: true, // for development
       }),
     }),
+    UserModule,
     CommonModule,
     ApiGatewayModule,
-    UserModule,
+    GameEngineModule,
     GameServiceModule,
+    NotificationsModule,
+    SocketServiceModule,
   ],
   controllers: [],
   providers: [],
