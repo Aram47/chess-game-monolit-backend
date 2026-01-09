@@ -7,7 +7,8 @@ import {
   IGameRoom,
   REDIS_CLIENT,
   GameMakeMoveDto,
-	MakeMoveLuaScript,
+  MakeMoveLuaScript,
+  MakeMoveLuaResult,
   SOCKET_EMIT_MESSAGE,
 } from '../../common';
 import { SnapshotServiceService } from '../snapshot-service/snapshot-service.service';
@@ -47,7 +48,9 @@ export class SocketServiceService implements OnModuleInit {
   }
 
   async makeMove(server: Server, client: Socket, payload: GameMakeMoveDto) {
-    const roomRaw = await this.redisClient.get(`room:${payload.roomId}`);
+    const roomKey = `room:${payload.roomId}`;
+
+    const roomRaw = await this.redisClient.get(roomKey);
     if (!roomRaw) throw new Error('Room not found');
 
     const room: IGameRoom = JSON.parse(roomRaw);
@@ -55,7 +58,6 @@ export class SocketServiceService implements OnModuleInit {
     const userId = Object.keys(room.sockets).find(
       (id) => room.sockets[id] === client.id,
     );
-
     if (!userId) throw new Error('Not a player');
 
     const userColor = this.getColor(userId, room);
@@ -76,14 +78,12 @@ export class SocketServiceService implements OnModuleInit {
     room.fen = chess.fen();
     room.turn = chess.turn() === 'w' ? 'white' : 'black';
     room.isGameOver = chess.isGameOver();
+    room.isCheckmate = chess.isCheckmate();
+    room.isDraw = chess.isDraw();
     room.allMoves.push(payload.move);
 
     if (room.isGameOver) {
-      room.winner = chess.isCheckmate()
-        ? userColor
-        : chess.isDraw()
-          ? 'draw'
-          : null;
+      room.winner = room.isCheckmate ? userColor : room.isDraw ? 'draw' : null;
 
       room.finishedAt = Date.now();
       room.winnerId =
@@ -92,13 +92,35 @@ export class SocketServiceService implements OnModuleInit {
           : room.winner === 'black'
             ? room.black
             : undefined;
+    }
 
+    let result: MakeMoveLuaResult;
+
+    try {
+      result = await this.redisClient.makeMoveAtomic(
+        roomKey,
+        room.version,
+        JSON.stringify(room),
+        3600,
+      );
+    } catch (e: any) {
+      if (e.message?.includes('VERSION_CONFLICT')) {
+        throw new Error('Move already processed');
+      }
+      throw e;
+    }
+
+    const [status, newVersion, isGameOver] = result;
+
+    if (status !== 'OK') {
+      throw new Error('Atomic move failed');
+    }
+
+    room.version = newVersion;
+
+    if (isGameOver === 1) {
       await this.finishGameInternal(server, room);
     } else {
-      await this.redisClient.set(
-        `room:${payload.roomId}`,
-        JSON.stringify(room),
-      );
       server.to(payload.roomId).emit(SOCKET_EMIT_MESSAGE.MOVE_MADE, {
         move: payload.move,
       });
