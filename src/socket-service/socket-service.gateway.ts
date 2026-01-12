@@ -4,6 +4,8 @@ import {
   ConnectedSocket,
   WebSocketGateway,
   SubscribeMessage,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
@@ -22,15 +24,25 @@ import { SocketServiceService } from './socket-service.service';
     origin: '*', // will be changed to valid domains
   },
 })
-export class SocketServiceGateway {
+export class SocketServiceGateway
+  implements OnGatewayDisconnect, OnGatewayConnection
+{
   @WebSocketServer()
   private readonly server: Server;
 
-  constructor(private readonly socketServiceService: SocketServiceService) {}
+  constructor(private readonly socketService: SocketServiceService) {}
+
+  async handleDisconnect(client: Socket) {
+    await this.socketService.handleDisconnect(this.server, client);
+  }
+
+  async handleConnection(client: Socket) {
+    await this.socketService.handleReconnect(this.server, client);
+  }
 
   @SubscribeMessage(SOCKET_SUBSCRIBE_MESSAGE.FIND_GAME)
   async findGame(@ConnectedSocket() client: Socket) {
-    await this.socketServiceService.findGame(
+    await this.socketService.findGame(
       this.server,
       client,
       client.data.user.sub, // sub is a user id
@@ -42,6 +54,6 @@ export class SocketServiceGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: GameMakeMoveDto,
   ) {
-    await this.socketServiceService.makeMove(this.server, client, payload);
+    await this.socketService.makeMove(this.server, client, payload);
   }
 }
