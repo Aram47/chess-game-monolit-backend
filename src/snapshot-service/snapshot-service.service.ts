@@ -39,8 +39,8 @@ export class SnapshotServiceService {
   async storeGameResultSnapshot(room: IGameRoom) {
     const createGameSnapshot = await this.gameSnapshotRepository.create({
       fen: room.fen,
-      white: room.white,
-      black: room.black,
+      white: room.white.userId,
+      black: room.black.userId,
       isDraw: room.isDraw,
       winnerId: room.winnerId,
       allMoves: room.allMoves,

@@ -50,3 +50,7 @@ export class GameSnapshot {
 export type GameSnapshotDocument = GameSnapshot & Document;
 
 export const GameSnapshotSchema = SchemaFactory.createForClass(GameSnapshot);
+
+GameSnapshotSchema.index({ white: 1 });
+GameSnapshotSchema.index({ black: 1 });
+GameSnapshotSchema.index({ finishedAt: -1 });
