@@ -25,9 +25,8 @@ import {
   CreateProblemCategoryDto,
 } from '../../common';
 import { Chess } from 'chess.js';
-import { Stockfish } from './stockfish';
+import { GameEngineService } from '../game-engine/game-engine.service';
 import { SnapshotServiceService } from '../snapshot-service/snapshot-service.service';
-
 @Injectable()
 export class GameServiceService {
   constructor(
@@ -42,7 +41,7 @@ export class GameServiceService {
     @InjectRepository(ProblemCategory)
     private readonly problemCategoryRepository: Repository<ProblemCategory>,
     private readonly datasSource: DataSource,
-    private readonly stockfish: Stockfish,
+    private readonly gameEngineService: GameEngineService,
   ) {}
 
   async getProblems(
@@ -247,7 +246,11 @@ export class GameServiceService {
     return category;
   }
 
-  async startGameWithBot(userMetaData: UserDecoratorDto) {}
+  async startGameWithBot(user: UserDecoratorDto) {
+    console.log(user);
+  }
 
-  async makeMoveInTheGameWithBot(move: MoveType) {}
+  async makeMoveInTheGameWithBot(move: MoveType) {
+    console.log(move);
+  }
 }
