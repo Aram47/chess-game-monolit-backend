@@ -6,10 +6,10 @@ import {
   ProblemTheme,
   ProblemCategory,
 } from '../../common';
-import { Stockfish } from './stockfish';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GameServiceService } from './game-service.service';
 import { GameServiceController } from './game-service.controller';
+import { GameEngineModule } from '../game-engine/game-engine.module';
 import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.module';
 
 @Module({
@@ -21,10 +21,11 @@ import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.modu
       ProblemCategory,
     ]),
     RedisModule,
+    GameEngineModule,
     SnapshotServiceModule,
   ],
   controllers: [GameServiceController],
-  providers: [GameServiceService, Stockfish],
+  providers: [GameServiceService],
   exports: [GameServiceService],
 })
 export class GameServiceModule {}
