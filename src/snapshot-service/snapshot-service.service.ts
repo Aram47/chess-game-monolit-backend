@@ -2,7 +2,9 @@ import { Model } from 'mongoose';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
-  IGameRoom,
+  isBotRoom,
+  IPvPGameRoom,
+  IPvEGameRoom,
   GameSnapshot,
   ProblemSnapshot,
   ProblemSnapshotDto,
@@ -36,7 +38,13 @@ export class SnapshotServiceService {
     return createdProblemSnapshot;
   }
 
-  async storeGameResultSnapshot(room: IGameRoom) {
+  async storeGameResultSnapshot(room: IPvPGameRoom | IPvEGameRoom) {
+    return isBotRoom(room)
+      ? await this.storePvEGameResult(room as IPvEGameRoom)
+      : await this.storePvPGameResult(room as IPvPGameRoom);
+  }
+
+  private async storePvPGameResult(room: IPvPGameRoom) {
     const createGameSnapshot = await this.gameSnapshotRepository.create({
       fen: room.fen,
       white: room.white.userId,
@@ -53,5 +61,15 @@ export class SnapshotServiceService {
     await createGameSnapshot.save();
 
     return createGameSnapshot;
+  }
+
+  private async storePvEGameResult(room: IPvEGameRoom) {
+    console.log(room);
+    /**
+     * @Comming_Soon
+     * But i think this is a bad solution
+     * because we will store snapshotes
+     * of games separate
+     */
   }
 }

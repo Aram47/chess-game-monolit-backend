@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 import { Server, Socket } from 'socket.io';
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import {
-  IGameRoom,
+  IPvPGameRoom,
   REDIS_CLIENT,
   GameMakeMoveDto,
   MakeMoveLuaScript,
@@ -99,7 +99,7 @@ export class SocketServiceService implements OnModuleInit {
       return;
     }
 
-    const room: IGameRoom = JSON.parse(roomRaw);
+    const room: IPvPGameRoom = JSON.parse(roomRaw);
 
     if (room.isGameOver) {
       // Game finished
@@ -141,7 +141,7 @@ export class SocketServiceService implements OnModuleInit {
       return;
     }
 
-    const room: IGameRoom = JSON.parse(roomRaw);
+    const room: IPvPGameRoom = JSON.parse(roomRaw);
 
     const timeoutTriggered = await this.checkDisconnectTimeout(server, room);
     if (timeoutTriggered) {
@@ -224,7 +224,7 @@ export class SocketServiceService implements OnModuleInit {
       return;
     }
 
-    const room: IGameRoom = JSON.parse(roomRaw);
+    const room: IPvPGameRoom = JSON.parse(roomRaw);
 
     const timeoutTriggered = await this.checkDisconnectTimeout(server, room);
     if (timeoutTriggered) {
@@ -328,7 +328,7 @@ export class SocketServiceService implements OnModuleInit {
     socketId: string,
   ): Promise<{
     status: 'Waiting' | 'Match' | 'UNKNOWN_MATCHMAKE_STATUS';
-    room?: IGameRoom;
+    room?: IPvPGameRoom;
   }> {
     const roomId: string = `game:${uuid()}`;
     const result = await this.redisClient.matchMake(
@@ -370,7 +370,7 @@ export class SocketServiceService implements OnModuleInit {
 
   private async checkDisconnectTimeout(
     server: Server,
-    room: IGameRoom,
+    room: IPvPGameRoom,
   ): Promise<boolean> {
     if (!room.disconnected || room.isGameOver) {
       return false;
@@ -405,7 +405,7 @@ export class SocketServiceService implements OnModuleInit {
     return true;
   }
 
-  private async finishGameInternal(server: Server, room: IGameRoom) {
+  private async finishGameInternal(server: Server, room: IPvPGameRoom) {
     const { roomId, winner, winnerId } = room;
     await this.snapshotService.storeGameResultSnapshot(room);
     server.to(roomId).emit(SOCKET_EMIT_MESSAGE.GAME_FINISHED, {
@@ -416,13 +416,13 @@ export class SocketServiceService implements OnModuleInit {
     await this.cleanupRoom(room);
   }
 
-  private async cleanupRoom(room: IGameRoom) {
+  private async cleanupRoom(room: IPvPGameRoom) {
     await this.redisClient.removeGameRoom(`chess:room:${room.roomId}`);
     await this.redisClient.del(`chess:user:${room.white.userId}:room`);
     await this.redisClient.del(`chess:user:${room.black.userId}:room`);
   }
 
-  private getColor(userId: string, room: IGameRoom) {
+  private getColor(userId: string, room: IPvPGameRoom) {
     return room.white.userId === userId
       ? 'white'
       : room.black.userId === userId

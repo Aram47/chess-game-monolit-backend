@@ -1,4 +1,5 @@
 import {
+  MoveType,
   mergeDtos,
   AuthGuard,
   Pagination,
@@ -30,7 +31,7 @@ import {
 } from '@nestjs/swagger';
 
 @ApiTags('Game Service')
-@Controller('/problems')
+@Controller('/game')
 export class GameServiceController {
   constructor(private readonly gameService: GameServiceService) {}
 
@@ -42,7 +43,7 @@ export class GameServiceController {
   })
   @ApiQuery({ type: GetProblemsQueryDto })
   @UseGuards(AuthGuard)
-  @Get('')
+  @Get('/problems')
   async getProblems(
     @Pagination() dto: PaginationDto,
     @Query() filters: GetProblemsQueryDto,
@@ -50,7 +51,7 @@ export class GameServiceController {
     const mergedPayload: MergePayload<[PaginationDto, GetProblemsQueryDto]> =
       mergeDtos<[PaginationDto, GetProblemsQueryDto]>(dto, filters);
     const [problems, total] = await this.gameService.getProblems(mergedPayload);
-    
+
     // Return paginated response format expected by frontend
     return {
       data: problems,
@@ -72,7 +73,7 @@ export class GameServiceController {
     type: Number,
   })
   @UseGuards(AuthGuard)
-  @Post(':id/start')
+  @Post('/problems/:id/start')
   async startProblem(
     @Param(':id') id: number,
     @UserDecorator() userMetaData: UserDecoratorDto,
@@ -93,7 +94,7 @@ export class GameServiceController {
     type: Number,
   })
   @UseGuards(AuthGuard)
-  @Post(':id/finsh')
+  @Post('/problems/:id/finsh')
   async finishProblem(
     @Param(':id') id: number,
     @UserDecorator() userMetaData: UserDecoratorDto,
@@ -114,12 +115,24 @@ export class GameServiceController {
   })
   @ApiBody({ type: ProblemMoveDto })
   @UseGuards(AuthGuard)
-  @Post(':id/move')
+  @Post('/problems/:id/move')
   async move(
     @Param(':id') id: number,
     @Body() dto: ProblemMoveDto,
     @UserDecorator() userMetaData: UserDecoratorDto,
   ) {
     return await this.gameService.makeMove(id, userMetaData.sub, dto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/start')
+  async startGameWithBot(@UserDecorator() userMetaData: UserDecoratorDto) {
+    return await this.gameService.startGameWithBot(userMetaData);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/move')
+  async makeMoveInTheGameWithBot(@Body() move: MoveType) {
+    return await this.gameService.makeMoveInTheGameWithBot(move);
   }
 }
