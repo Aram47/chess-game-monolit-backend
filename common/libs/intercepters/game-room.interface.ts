@@ -1,16 +1,8 @@
 import { MoveType } from '../types';
 
-export interface IGameRoom {
+interface IGameRoom {
   fen: string;
   turn: string;
-  white: {
-    userId: string;
-    socketId: string;
-  };
-  black: {
-    userId: string;
-    socketId: string;
-  };
   roomId: string;
   version: number;
   createdAt: number;
@@ -26,3 +18,23 @@ export interface IGameRoom {
     at: number;
   };
 }
+
+export interface IPvEGameRoom extends IGameRoom {
+  white: { userId: string };
+  black: 'bot';
+}
+
+export interface IPvPGameRoom extends IGameRoom {
+  white: {
+    userId: string;
+    socketId: string;
+  };
+  black: {
+    userId: string;
+    socketId: string;
+  };
+}
+
+export const isBotRoom = (room: IPvEGameRoom | IPvPGameRoom): boolean => {
+  return typeof room.black === 'string' ? true : false;
+};

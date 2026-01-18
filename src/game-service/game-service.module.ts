@@ -4,10 +4,9 @@ import {
   RedisModule,
   ChessProblem,
   ProblemTheme,
-  ENV_VARIABLES,
   ProblemCategory,
 } from '../../common';
-import { ConfigService } from '@nestjs/config';
+import { Stockfish } from './stockfish';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GameServiceService } from './game-service.service';
 import { GameServiceController } from './game-service.controller';
@@ -23,10 +22,9 @@ import { SnapshotServiceModule } from '../snapshot-service/snapshot-service.modu
     ]),
     RedisModule,
     SnapshotServiceModule,
-
   ],
   controllers: [GameServiceController],
-  providers: [GameServiceService],
+  providers: [GameServiceService, Stockfish],
   exports: [GameServiceService],
 })
 export class GameServiceModule {}

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   Theme,
+  MoveType,
   REDIS_CLIENT,
   MergePayload,
   ChessProblem,
@@ -24,6 +25,7 @@ import {
   CreateProblemCategoryDto,
 } from '../../common';
 import { Chess } from 'chess.js';
+import { Stockfish } from './stockfish';
 import { SnapshotServiceService } from '../snapshot-service/snapshot-service.service';
 
 @Injectable()
@@ -40,6 +42,7 @@ export class GameServiceService {
     @InjectRepository(ProblemCategory)
     private readonly problemCategoryRepository: Repository<ProblemCategory>,
     private readonly datasSource: DataSource,
+    private readonly stockfish: Stockfish,
   ) {}
 
   async getProblems(
@@ -243,4 +246,8 @@ export class GameServiceService {
 
     return category;
   }
+
+  async startGameWithBot(userMetaData: UserDecoratorDto) {}
+
+  async makeMoveInTheGameWithBot(move: MoveType) {}
 }
