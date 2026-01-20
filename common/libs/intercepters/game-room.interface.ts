@@ -20,8 +20,9 @@ interface IGameRoom {
 }
 
 export interface IPvEGameRoom extends IGameRoom {
-  white: { userId: string };
   black: 'bot';
+  white: { userId: string };
+  level: 'easy' | 'medium' | 'hard';
 }
 
 export interface IPvPGameRoom extends IGameRoom {
