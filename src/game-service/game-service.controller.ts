@@ -131,8 +131,16 @@ export class GameServiceController {
   }
 
   @UseGuards(AuthGuard)
-  @Post('/move')
-  async makeMoveInTheGameWithBot(@Body() move: MoveType) {
-    return await this.gameService.makeMoveInTheGameWithBot(move);
+  @Post('/move/:id')
+  async makeMoveInTheGameWithBot(
+    @Param('id') roomId: string,
+    @Body() move: MoveType,
+    @UserDecorator() userMetaData: UserDecoratorDto,
+  ) {
+    return await this.gameService.makeMoveInTheGameWithBot(
+      roomId,
+      move,
+      userMetaData,
+    );
   }
 }

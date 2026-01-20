@@ -1,56 +1,22 @@
+import { spawn } from 'child_process';
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { StockfishCommands, StockfishResponse } from '../../common';
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { MoveType, StockfishEngineWrapper } from '../../common';
 
 @Injectable()
 export class GameEngineService implements OnModuleInit {
-  currentEngineIndex: number = 4;
-  commands: Record<string, string>;
-  responses: Record<string, string>;
+  currentEngineIndex: number = 0;
   ENGINES_POOL_DEFAULT_SIZE: number = 4;
-  stokfishEngines: Array<ChildProcessWithoutNullStreams | null> = [];
+  stokfishEngines: StockfishEngineWrapper[];
 
   onModuleInit() {
     this.stokfishEngines = new Array(this.ENGINES_POOL_DEFAULT_SIZE)
       .fill(null)
-      .map(() => {
-        const engine = spawn('stockfish');
-        console.log(`Stockfish pid: ${engine.pid}`);
-        engine.stdout.on('data', (data) =>
-          console.log('Stockfish says:', data.toString()),
-        );
-        engine.stderr.on('data', (data) =>
-          console.error('Stockfish stderr:', data.toString()),
-        );
-        engine.on('error', (err) => console.error('Stockfish failed:', err));
-        return engine;
-      });
-
-    this.commands = {
-      [StockfishCommands.GO]: StockfishCommands.GO, // go
-      [StockfishCommands.UCI]: StockfishCommands.UCI, // uci
-      [StockfishCommands.STOP]: StockfishCommands.STOP, // stop
-      [StockfishCommands.QUIT]: StockfishCommands.QUIT, // quit
-      [StockfishCommands.DEBUG]: StockfishCommands.DEBUG, // debug
-      [StockfishCommands.ISREADY]: StockfishCommands.ISREADY, // isready
-      [StockfishCommands.REGISTER]: StockfishCommands.REGISTER, // register
-      [StockfishCommands.POSITION]: StockfishCommands.POSITION, // position
-      [StockfishCommands.SETOPTION]: StockfishCommands.SETOPTION, // setoption
-      [StockfishCommands.PONDERHIT]: StockfishCommands.PONDERHIT, // ponderhit
-      [StockfishCommands.UCINEWGAME]: StockfishCommands.UCINEWGAME, // ucinewgame
-    };
-
-    this.responses = {
-      [StockfishResponse.ID]: StockfishResponse.ID, // id
-      [StockfishResponse.UCIOK]: StockfishResponse.UCIOK, // uciok
-      [StockfishResponse.READYOK]: StockfishResponse.READYOK, // readyok
-      [StockfishResponse.BESTMOVE]: StockfishResponse.BESTMOVE, // bestmove
-    };
+      .map(() => this.createEngine());
 
     const cleanUp = () => {
       console.log('Node.js exiting, killing all Stockfish engines...');
       this.stokfishEngines.forEach((engine) => {
-        if (!engine.killed) engine.kill();
+        if (!engine.process.killed) engine.process.kill();
       });
     };
 
@@ -76,20 +42,155 @@ export class GameEngineService implements OnModuleInit {
     });
   }
 
-  private async handleCommand(command: string) {
-    return new Promise((resolve) => {
-      const engine = this.stokfishEngines[this.currentEngineIndex];
+  async getBestMove(
+    fen: string,
+    level: 'easy' | 'medium' | 'hard',
+  ): Promise<MoveType> {
+    const engine = this.getEngine();
 
-      this.currentEngineIndex =
-        (this.currentEngineIndex + 1) % this.stokfishEngines.length;
+    return new Promise<MoveType>((resolve, reject) => {
+      const timeoutMs = 2000;
+      let done = false;
 
-      const onData = (data) => {
-        resolve(data.toString());
-        engine.stdout.off('data', onData);
+      const timeoutId = setTimeout(() => {
+        if (done) return;
+        done = true;
+
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+
+        const index = this.stokfishEngines.indexOf(engine);
+        if (index !== -1) {
+          this.restartEngine(index);
+        }
+
+        reject(new Error('Stockfish timeout'));
+      }, timeoutMs);
+
+      let buffer = '';
+
+      const onData = (data: Buffer) => {
+        if (done) return;
+
+        buffer += data.toString();
+
+        if (!buffer.includes('bestmove')) return;
+
+        done = true;
+        clearTimeout(timeoutId);
+
+        const match = buffer.match(/bestmove\s(\S+)/);
+        buffer = '';
+        if (!match) return;
+
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+
+        const move = match[1];
+
+        if (move === '(none)') {
+          return reject(new Error('No legal moves'));
+        }
+
+        resolve({
+          from: move.slice(0, 2),
+          to: move.slice(2, 4),
+          promotion: move[4],
+        });
       };
 
-      engine.stdout.on('data', onData);
-      engine.stdin.write(command + '\n');
+      engine.process.stdout.on('data', onData);
+
+      try {
+        engine.process.stdin.write('ucinewgame\n');
+        engine.process.stdin.write(`position fen ${fen}\n`);
+
+        // hier we choose one variant
+        this.sendGoCommand(engine, level);
+      } catch (err) {
+        clearTimeout(timeoutId);
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+        reject(err);
+      }
     });
+  }
+
+  private sendGoCommand(
+    engine: StockfishEngineWrapper,
+    level: 'easy' | 'medium' | 'hard',
+  ) {
+    const map = {
+      easy: Math.random() < 0.3 ? 50 : 150,
+      medium: 300,
+      hard: 600,
+    };
+
+    engine.process.stdin.write(`go movetime ${map[level]}\n`);
+  }
+
+  private createEngine(): StockfishEngineWrapper {
+    const engine = spawn('stockfish');
+
+    engine.stdin.write('uci\n');
+    engine.stdin.write('isready\n');
+
+    engine.stderr.on('data', (data) =>
+      console.error('Stockfish stderr:', data.toString()),
+    );
+    engine.on('exit', (code) => {
+      console.error('Stockfish exited with code', code);
+    });
+
+    engine.on('close', () => {
+      console.error('Stockfish closed');
+    });
+    engine.on('error', (err) => console.error('Stockfish failed:', err));
+
+    return {
+      process: engine,
+      busy: false,
+    };
+  }
+
+  private restartEngine(index: number) {
+    const oldEngine = this.stokfishEngines[index];
+
+    try {
+      if (!oldEngine.process.killed) {
+        oldEngine.process.kill();
+      }
+    } catch (e) {
+      console.error('Error killing Stockfish:', e);
+    }
+
+    console.log(`Restarting Stockfish engine at index ${index}`);
+
+    this.stokfishEngines[index] = this.createEngine();
+  }
+
+  private getEngine(): StockfishEngineWrapper {
+    const enginesCount = this.stokfishEngines.length;
+
+    for (let i = 0; i < enginesCount; i++) {
+      const index = this.currentEngineIndex;
+      this.currentEngineIndex = (this.currentEngineIndex + 1) % enginesCount;
+
+      const engine = this.stokfishEngines[index];
+
+      // if process killed we restart it
+      if (engine.process.killed) {
+        this.restartEngine(index);
+        this.stokfishEngines[index].busy = true;
+        return this.stokfishEngines[index];
+      }
+
+      if (!engine.busy) {
+        engine.busy = true;
+        return engine;
+      }
+    }
+
+    throw new Error('All Stockfish engines are busy');
   }
 }

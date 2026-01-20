@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { v4 as uuid } from 'uuid';
 import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -10,6 +11,7 @@ import {
 import {
   Theme,
   MoveType,
+  IPvEGameRoom,
   REDIS_CLIENT,
   MergePayload,
   ChessProblem,
@@ -247,10 +249,128 @@ export class GameServiceService {
   }
 
   async startGameWithBot(user: UserDecoratorDto) {
-    console.log(user);
+    /**
+     * @Important
+     * I think we can have issue if user will send many requests to this api
+     * I think we can solve this issue via redis atomic operations
+     * like we can create room instance inside of redis and do that operations
+     * inside of redis via atomic operations
+     *
+     * @Important2
+     * we will check if user has already created room we will not move forvard
+     * room creating operation
+     */
+    const roomId = uuid();
+
+    const chess = new Chess();
+
+    const room: IPvEGameRoom = {
+      roomId,
+      fen: chess.fen(),
+      turn: 'w',
+      white: { userId: String(user.sub) },
+      black: 'bot',
+      level: 'medium',
+      allMoves: [],
+      createdAt: Date.now(),
+      version: 1,
+    };
+
+    await this.redisClient.set(
+      `pve:room:${roomId}`,
+      JSON.stringify(room),
+      'EX',
+      60 * 60,
+    );
+
+    return {
+      roomId,
+      fen: room.fen,
+      color: 'white',
+    };
   }
 
-  async makeMoveInTheGameWithBot(move: MoveType) {
-    console.log(move);
+  async makeMoveInTheGameWithBot(
+    roomId: string,
+    move: MoveType,
+    user: UserDecoratorDto,
+  ) {
+    const raw = await this.redisClient.get(`pve:room:${roomId}`);
+    if (!raw) throw new NotFoundException('Room not found');
+    const room: IPvEGameRoom = JSON.parse(raw);
+
+    if (room.white.userId !== String(user.sub)) {
+      throw new BadRequestException('Not your game');
+    }
+
+    if (room.isGameOver) {
+      throw new BadRequestException('Game already finished');
+    }
+
+    const chess = new Chess(room.fen);
+
+    // User move
+    const userMove = chess.move(move);
+    if (!userMove) {
+      throw new BadRequestException('Invalid move');
+    }
+
+    room.allMoves.push(move);
+
+    // Checking is finished or not
+    if (chess.isGameOver()) {
+      return await this.finishPvEGame(room, chess);
+    }
+
+    // Stockfish engine move
+    const bestMove = await this.gameEngineService.getBestMove(
+      chess.fen(),
+      room.level,
+    );
+
+    chess.move(bestMove);
+    room.allMoves.push(bestMove);
+
+    // Checking is finished or not after stockfish move
+    if (chess.isGameOver()) {
+      return await this.finishPvEGame(room, chess);
+    }
+
+    room.fen = chess.fen();
+    room.turn = chess.turn();
+    room.version++;
+
+    await this.redisClient.set(
+      `pve:room:${roomId}`,
+      JSON.stringify(room),
+      'EX',
+      60 * 60,
+    );
+
+    return {
+      fen: room.fen,
+      userMove,
+      botMove: bestMove,
+    };
+  }
+
+  private async finishPvEGame(room: IPvEGameRoom, chess: Chess) {
+    room.isGameOver = true;
+    room.finishedAt = Date.now();
+    room.fen = chess.fen();
+
+    if (chess.isCheckmate()) {
+      room.isCheckmate = true;
+      room.winner = chess.turn() === 'w' ? 'black' : 'white';
+      room.winnerId = room.winner === 'white' ? room.white.userId : 'bot';
+    } else {
+      room.isDraw = true;
+      room.winner = 'draw';
+    }
+
+    await this.snapshotService.storeGameResultSnapshot(room);
+    await this.redisClient.del(`pve:room:${room.roomId}`);
+
+    return room;
   }
 }
