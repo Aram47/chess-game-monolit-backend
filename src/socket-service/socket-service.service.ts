@@ -189,23 +189,13 @@ export class SocketServiceService implements OnModuleInit {
         return;
       }
       case 'Match': {
-        console.log('room --------------------->', room);
         client.join(room.roomId);
         const opponentSocketId =
           room.white.userId === userId
             ? room.black.socketId
             : room.white.socketId;
 
-        console.log('room.white.socketId', room.white.socketId);
-        console.log('room.black.socketId', room.black.socketId);
-
-        console.log('opponentSocketId', opponentSocketId);
-        console.log('server.sockets', server.sockets);
-        // console.log('server.sockets', server.sockets.server.sockets[opponentSocketId]);
-        // console.log('server.sockets', server.sockets.get(opponentSocketId));
-
         const opponentSocket = client.nsp.sockets.get(opponentSocketId);
-        console.log('opponentSocket', opponentSocket);
         opponentSocket?.join(room.roomId);
 
         server.to(room.roomId).emit(SOCKET_EMIT_MESSAGE.GAME_STARTED, {
@@ -288,8 +278,6 @@ export class SocketServiceService implements OnModuleInit {
     room.isGameOver = chess.isGameOver();
     room.isCheckmate = chess.isCheckmate();
     room.isDraw = chess.isDraw();
-    console.log('room type', Array.isArray(room.allMoves))
-    console.log('room allMoves', room.allMoves)
     if (!room.allMoves) {
       room.allMoves = new Array<MoveType>();
     }
