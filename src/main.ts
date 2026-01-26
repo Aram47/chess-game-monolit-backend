@@ -15,6 +15,10 @@ async function bootstrap() {
   });
 
   app.use(cookieParser());
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
   app.useGlobalInterceptors(new LoggingInterceptor());
   // app.useGlobalPipes(
   //   new ValidationPipe({
@@ -43,7 +47,7 @@ async function bootstrap() {
     });
 
     logger.log(
-      `Swagger available at http://localhost:${process.env.PORT ?? 3000}/swagger`,
+      `Swagger available at http://10.79.93.100:${process.env.PORT ?? 3000}/swagger`,
     );
   }
   await app.listen(process.env.PORT ?? 3000, () => {

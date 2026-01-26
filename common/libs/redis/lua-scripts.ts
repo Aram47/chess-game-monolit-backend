@@ -86,7 +86,6 @@ export const MatchMakeAtomicLuaScript = `
   	},
   	version = 0,
   	createdAt = tonumber(redis.call("TIME")[1]),
-  	allMoves = {}
 	}
 
 	redis.call("SET", "chess:room:" .. room.roomId, cjson.encode(room), "EX", ARGV[4])

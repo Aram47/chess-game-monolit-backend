@@ -4,6 +4,7 @@ import { v4 as uuid } from 'uuid';
 import { Server, Socket } from 'socket.io';
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import {
+  MoveType,
   IPvPGameRoom,
   REDIS_CLIENT,
   GameMakeMoveDto,
@@ -188,13 +189,23 @@ export class SocketServiceService implements OnModuleInit {
         return;
       }
       case 'Match': {
+        console.log('room --------------------->', room);
         client.join(room.roomId);
         const opponentSocketId =
           room.white.userId === userId
             ? room.black.socketId
             : room.white.socketId;
 
-        const opponentSocket = server.sockets.sockets.get(opponentSocketId);
+        console.log('room.white.socketId', room.white.socketId);
+        console.log('room.black.socketId', room.black.socketId);
+
+        console.log('opponentSocketId', opponentSocketId);
+        console.log('server.sockets', server.sockets);
+        // console.log('server.sockets', server.sockets.server.sockets[opponentSocketId]);
+        // console.log('server.sockets', server.sockets.get(opponentSocketId));
+
+        const opponentSocket = client.nsp.sockets.get(opponentSocketId);
+        console.log('opponentSocket', opponentSocket);
         opponentSocket?.join(room.roomId);
 
         server.to(room.roomId).emit(SOCKET_EMIT_MESSAGE.GAME_STARTED, {
@@ -277,6 +288,11 @@ export class SocketServiceService implements OnModuleInit {
     room.isGameOver = chess.isGameOver();
     room.isCheckmate = chess.isCheckmate();
     room.isDraw = chess.isDraw();
+    console.log('room type', Array.isArray(room.allMoves))
+    console.log('room allMoves', room.allMoves)
+    if (!room.allMoves) {
+      room.allMoves = new Array<MoveType>();
+    }
     room.allMoves.push(payload.move);
 
     if (room.isGameOver) {
@@ -314,12 +330,12 @@ export class SocketServiceService implements OnModuleInit {
 
     room.version = newVersion;
 
+    server.to(payload.roomId).emit(SOCKET_EMIT_MESSAGE.MOVE_MADE, {
+      move: payload.move,
+    });
+
     if (isGameOver === 1) {
       await this.finishGameInternal(server, room);
-    } else {
-      server.to(payload.roomId).emit(SOCKET_EMIT_MESSAGE.MOVE_MADE, {
-        move: payload.move,
-      });
     }
   }
 

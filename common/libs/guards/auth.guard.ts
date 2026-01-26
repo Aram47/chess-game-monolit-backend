@@ -37,9 +37,9 @@ export class AuthGuard implements CanActivate {
     if (!token) {
       throw new UnauthorizedException('No access token provided');
     }
-
+    // console.log('token', token);
     const user = this.jwtUtils.verifyToken(token);
-
+    // console.log('user', user);
     if (!user) {
       throw new UnauthorizedException('Invalid token');
     }
