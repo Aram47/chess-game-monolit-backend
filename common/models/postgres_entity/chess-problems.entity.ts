@@ -28,7 +28,12 @@ export class ChessProblem {
   fen: string;
 
   @ApiProperty({
-    example: [{ from: 'e2', to: 'e4' }, { from: 'e7', to: 'e5' }, { from: 'g1', to: 'f3' }, { from: 'b8', to: 'c6' }],
+    example: [
+      { from: 'e2', to: 'e4' },
+      { from: 'e7', to: 'e5' },
+      { from: 'g1', to: 'f3' },
+      { from: 'b8', to: 'c6' },
+    ],
     description: 'Sequence of moves that solve the problem',
     type: [Object],
   })

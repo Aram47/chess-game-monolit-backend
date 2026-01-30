@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs/bull": "^11.0.4",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.2",
@@ -30,11 +31,13 @@
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/platform-socket.io": "^10.4.20",
+    "@nestjs/schedule": "^6.1.0",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^10.4.20",
     "@types/cookie-parser": "^1.4.10",
     "bcrypt": "^6.0.0",
+    "bull": "^4.16.5",
     "cache-manager": "^7.2.7",
     "chess.js": "^1.4.0",
     "class-transformer": "^0.5.1",
