@@ -15,9 +15,9 @@ services:
       - '3000:3000'
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       mongo:
-        condition: service_started
+        condition: service_healthy
       postgres:
         condition: service_healthy
 
@@ -25,20 +25,31 @@ services:
     image: redis:latest
     container_name: redis
     restart: unless-stopped
-    expose:
-      - "6379"
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   mongo:
     image: mongo:latest
     container_name: mongo
     restart: unless-stopped
-    expose:
-      - "27017"
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   postgres:
     image: postgres:16
@@ -46,8 +57,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env.development
-    expose:
-      - "5432"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:
