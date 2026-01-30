@@ -16,9 +16,16 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:unit": "jest --config ./test/jest-unit.config.js",
+    "test:int": "jest --config ./test/jest-int.config.js --runInBand --passWithNoTests",
+    "test:e2e": "jest --config ./test/jest-e2e.config.js --runInBand",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:wait": "./scripts/wait-for-services.sh",
+    "docker:test": "./scripts/run-tests.sh",
+    "docker:setup": "./scripts/setup-and-test.sh"
   },
   "dependencies": {
     "@nestjs/bull": "^11.0.4",

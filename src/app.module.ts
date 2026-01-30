@@ -31,7 +31,7 @@ import { NotificationsModule } from './notification-service/notification.module'
         host: configService.get<string>(ENV_VARIABLES.POSTGRES_HOST),
         port: configService.get<number>(ENV_VARIABLES.POSTGRES_PORT),
         username: configService.get<string>(ENV_VARIABLES.POSTGRES_USER),
-        password: configService.get<string>(ENV_VARIABLES.POSTGRES_PASSWORD),
+        password: configService.get<string>(ENV_VARIABLES.POSTGRES_PASSWORD) || '',
         database: configService.get<string>(ENV_VARIABLES.POSTGRES_DB),
         entities: [
           User,
