@@ -200,10 +200,10 @@ Updates a user by ID.
 ---
 
 #### DELETE `/api/:id`
-Deletes a user by ID.
+Deletes the current user's own account. Admin-level user deletion is handled by the owner-service.
 
-**Auth:** `AuthGuard` + `RolesGuard`  
-**Authorization:** `ADMIN` or `SUPER_ADMIN` role required.
+**Auth:** `AuthGuard` (requires valid `accessToken` cookie)  
+**Authorization:** Owner only — `:id` must match the authenticated user's `sub`.
 
 **Path Parameters:**
 - `id`: User ID (positive integer, validated via `ParseIntPipe`)
@@ -220,7 +220,7 @@ Deletes a user by ID.
 
 **Error Responses:**
 - **401 Unauthorized**: Missing or invalid access token
-- **403 Forbidden**: Insufficient role
+- **403 Forbidden**: Can only delete own account
 - **404 Not Found**: User not found
 
 ---
@@ -228,7 +228,7 @@ Deletes a user by ID.
 ## Security Considerations
 
 1. **Authentication**: All user management endpoints require a valid `accessToken` cookie (enforced by `AuthGuard`)
-2. **Authorization**: Delete requires `ADMIN`/`SUPER_ADMIN` role; Update enforces ownership (or admin override)
+2. **Authorization**: Delete enforces ownership — users can only delete their own account. Admin user management is handled by the owner-service.
 3. **Token Storage**: Tokens are stored in HTTP-only cookies to prevent XSS attacks
 4. **Cookie Security**: Cookies use `secure: true` and `sameSite: 'strict'` flags
 5. **Password Handling**: Passwords are never returned in API responses; updates are bcrypt-hashed

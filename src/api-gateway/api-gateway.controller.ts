@@ -1,14 +1,13 @@
 import {
   User,
-  Role,
-  Roles,
   LoginDto,
   AuthGuard,
   Pagination,
-  RolesGuard,
+  UserDecorator,
   CreateUserDto,
   PaginationDto,
   UpdateUserDto,
+  UserDecoratorDto,
 } from '../../common';
 import {
   Req,
@@ -124,22 +123,25 @@ export class ApiGatewayController {
   async updateUserById(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
+    @UserDecorator() currentUser: UserDecoratorDto,
   ) {
-    return await this.apiGatewayService.updateUserById(id, dto);
+    return await this.apiGatewayService.updateUserById(id, dto, currentUser);
   }
 
-  @ApiOperation({ summary: 'Delete user by ID' })
+  @ApiOperation({ summary: 'Delete own account' })
   @ApiParam({ name: 'id', type: Number, description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User successfully deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — admin only' })
+  @ApiResponse({ status: 403, description: 'Forbidden — can only delete own account' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiCookieAuth()
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @UseGuards(AuthGuard)
   @Delete(':id')
-  async deleteUserById(@Param('id', ParseIntPipe) id: number) {
-    return await this.apiGatewayService.deleteUserById(id);
+  async deleteUserById(
+    @Param('id', ParseIntPipe) id: number,
+    @UserDecorator() currentUser: UserDecoratorDto,
+  ) {
+    return await this.apiGatewayService.deleteUserById(id, currentUser);
   }
 
   @ApiOperation({ summary: 'Refresh access and refresh tokens' })
@@ -173,7 +175,6 @@ export class ApiGatewayController {
 
   @ApiOperation({ summary: 'User logout' })
   @ApiResponse({ status: 200, description: 'User logged out successfully' })
-  @ApiCookieAuth()
   @Post('/logout')
   async logout(@Req() req: Request, @Res() res: Response) {
     const accessToken = req.cookies?.accessToken;
