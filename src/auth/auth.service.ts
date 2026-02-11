@@ -1,8 +1,12 @@
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../user/user.service';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { CreateUserDto, ENV_VARIABLES, JwtUtils, LoginDto } from '../../common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
+import { ENV_VARIABLES, JwtUtils, LoginDto } from '../../common';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +20,10 @@ export class AuthService {
     const user = await this.userService.getUserByLoginWithPassword(dto.login);
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    if (!user.userRelatedData) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     const ok = await bcrypt.compare(dto.password, user.password);
 
@@ -41,9 +49,10 @@ export class AuthService {
     return { accessToken, refreshToken, user: safeUser };
   }
 
-  async register(dto: CreateUserDto) {
-    await this.userService.createUser(dto);
-  }
+  // This function never called, from the api-gateway controller we use the user service to create a user
+  // async register(dto: CreateUserDto) {
+  //   await this.userService.createUser(dto);
+  // }
 
   async refresh(refreshToken: string) {
     const refreshTokenPayload = this.jwtUtils.verifyToken(
@@ -54,9 +63,19 @@ export class AuthService {
     if (!refreshTokenPayload)
       throw new UnauthorizedException('Invalid refresh token');
 
-    const user = await this.userService.getUserById(refreshTokenPayload.sub);
+    let user;
+    try {
+      user = await this.userService.getUserById(refreshTokenPayload.sub);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new UnauthorizedException('User not found');
+      }
+      throw error;
+    }
 
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user.userRelatedData) {
+      throw new UnauthorizedException('User data is incomplete');
+    }
 
     const payload = {
       sub: user.id,
@@ -78,7 +97,7 @@ export class AuthService {
   }
 
   async logout(accessToken: string) {
-    // In a real-world application, you might want to implement token blacklisting here.
+    // TODO: Implement token blacklisting (e.g. Redis-based) for proper invalidation
     const payload = this.jwtUtils.verifyToken(accessToken);
 
     if (!payload) throw new UnauthorizedException('Invalid access token');

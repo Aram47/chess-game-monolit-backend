@@ -32,9 +32,10 @@ The module consists of:
 The `login()` method performs the following steps:
 
 1. **Credential Retrieval**: Fetches user by login (email or username) including password hash
-2. **Password Verification**: Compares provided password with stored hash using bcrypt
-3. **Token Generation**: Creates JWT access and refresh tokens with user payload
-4. **Response Preparation**: Returns tokens and sanitized user data (without password)
+2. **User Data Validation**: Checks that `userRelatedData` exists (guards against orphaned rows)
+3. **Password Verification**: Compares provided password with stored hash using bcrypt
+4. **Token Generation**: Creates JWT access and refresh tokens with user payload
+5. **Response Preparation**: Returns tokens and sanitized user data (without password)
 
 **Token Payload Structure:**
 ```typescript
@@ -58,14 +59,16 @@ The `login()` method performs the following steps:
 The `refresh()` method performs the following steps:
 
 1. **Token Verification**: Validates the refresh token using the refresh secret
-2. **User Retrieval**: Fetches user by ID from token payload
-3. **Token Regeneration**: Creates new access and refresh token pair
-4. **Response**: Returns new token pair
+2. **User Retrieval**: Fetches user by ID from token payload — if user was deleted, `NotFoundException` is caught and re-thrown as `UnauthorizedException` (prevents 404 information leak)
+3. **User Data Validation**: Checks that `userRelatedData` exists
+4. **Token Regeneration**: Creates new access and refresh token pair with fresh DB data
+5. **Response**: Returns new token pair
 
 **Security Considerations:**
-- Refresh tokens are validated against a separate secret
+- Refresh tokens are validated against a separate secret (`JWT_REFRESH_SECRET`)
 - User existence is verified before token regeneration
-- New tokens are generated with current user data (role may have changed)
+- Deleted user → 401 (not 404) to prevent information leakage
+- New tokens are generated with current user data (role/email may have changed since login)
 
 ---
 
