@@ -1,7 +1,11 @@
 import {
   User,
+  Role,
+  Roles,
   LoginDto,
+  AuthGuard,
   Pagination,
+  RolesGuard,
   CreateUserDto,
   PaginationDto,
   UpdateUserDto,
@@ -15,7 +19,10 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
   Controller,
+  ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ApiGatewayService } from './api-gateway.service';
@@ -23,8 +30,10 @@ import {
   ApiBody,
   ApiTags,
   ApiParam,
+  ApiQuery,
   ApiOperation,
   ApiResponse,
+  ApiCookieAuth,
 } from '@nestjs/swagger';
 
 @ApiTags('API Gateway')
@@ -39,6 +48,7 @@ export class ApiGatewayController {
     description: 'Successful login',
     type: User,
   })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @Post('/login')
   async login(
     @Body() dto: LoginDto,
@@ -69,6 +79,7 @@ export class ApiGatewayController {
     description: 'User successfully registered',
     type: User,
   })
+  @ApiResponse({ status: 409, description: 'Email or username already exists' })
   @Post('/register')
   async register(@Body() dto: CreateUserDto) {
     return await this.apiGatewayService.register(dto);
@@ -76,26 +87,25 @@ export class ApiGatewayController {
 
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User found',
-    type: User,
-  })
+  @ApiResponse({ status: 200, description: 'User found', type: User })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiCookieAuth()
+  @UseGuards(AuthGuard)
   @Get(':id')
-  async getUserById(@Param('id') id: number) {
+  async getUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.apiGatewayService.getUserById(id);
   }
 
   @ApiOperation({ summary: 'Get paginated list of users' })
-  @ApiParam({
-    type: PaginationDto,
-    name: 'page',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of users',
-    type: [User],
-  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({ name: 'sortBy', required: false, type: String, description: 'Sort field' })
+  @ApiQuery({ name: 'sortDir', required: false, enum: ['ASC', 'DESC'], description: 'Sort direction' })
+  @ApiResponse({ status: 200, description: 'List of users', type: [User] })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiCookieAuth()
+  @UseGuards(AuthGuard)
   @Get('')
   async getUsers(@Pagination() dto: PaginationDto) {
     return await this.apiGatewayService.getUsers(dto);
@@ -103,37 +113,46 @@ export class ApiGatewayController {
 
   @ApiOperation({ summary: 'Update user by ID' })
   @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiBody({ type: User })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully updated',
-    type: User,
-  })
+  @ApiBody({ type: UpdateUserDto })
+  @ApiResponse({ status: 200, description: 'User successfully updated', type: User })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'Email or username already exists' })
+  @ApiCookieAuth()
+  @UseGuards(AuthGuard)
   @Patch(':id')
-  async updateUserById(@Param('id') id: number, @Body() dto: UpdateUserDto) {
+  async updateUserById(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserDto,
+  ) {
     return await this.apiGatewayService.updateUserById(id, dto);
   }
 
   @ApiOperation({ summary: 'Delete user by ID' })
   @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully deleted',
-    type: User,
-  })
+  @ApiResponse({ status: 200, description: 'User successfully deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — admin only' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiCookieAuth()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Delete(':id')
-  async deleteUserById(@Param('id') id: number) {
+  async deleteUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.apiGatewayService.deleteUserById(id);
   }
 
   @ApiOperation({ summary: 'Refresh access and refresh tokens' })
-  @ApiResponse({
-    status: 200,
-    description: 'Tokens refreshed successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid refresh token' })
   @Post('/refresh')
   async refresh(@Req() req: Request, @Res() res: Response) {
-    const { refreshToken } = req.cookies;
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new BadRequestException('Refresh token cookie is missing');
+    }
+
     const { newAccessToken, newRefreshToken } =
       await this.apiGatewayService.refresh(refreshToken);
 
@@ -153,14 +172,16 @@ export class ApiGatewayController {
   }
 
   @ApiOperation({ summary: 'User logout' })
-  @ApiResponse({
-    status: 200,
-    description: 'User logged out successfully',
-  })
+  @ApiResponse({ status: 200, description: 'User logged out successfully' })
+  @ApiCookieAuth()
   @Post('/logout')
   async logout(@Req() req: Request, @Res() res: Response) {
-    const { accessToken } = req.cookies;
-    await this.apiGatewayService.logout(accessToken);
+    const accessToken = req.cookies?.accessToken;
+
+    if (accessToken) {
+      await this.apiGatewayService.logout(accessToken);
+    }
+
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
     return res.status(200).json({ message: 'Logged out successfully' });
