@@ -12,6 +12,8 @@ import {
   UpdateUserDto,
   ProblemCategory,
   CreateProblemDto,
+  CreateDWMProblemDto,
+  UpdateDWMProblemDto,
   CreateProblemCategoryDto,
 } from '../../common';
 import {
@@ -24,6 +26,7 @@ import {
 } from '@nestjs/swagger';
 import {
   Get,
+  Put,
   Post,
   Body,
   Param,
@@ -39,6 +42,12 @@ import {
 export class OwnerServiceController {
   constructor(private readonly ownerServiceService: OwnerServiceService) {}
 
+  /**
+   * @Chess Problem Management APIs
+   *
+   * apis for chess problem creation, deletion, updation and fetching
+   */
+
   @ApiOperation({ summary: 'Create a new chess problem' })
   @ApiResponse({
     status: 201,
@@ -47,9 +56,9 @@ export class OwnerServiceController {
   })
   @ApiBody({ type: CreateProblemDto })
   @Roles(Role.ADMIN)
-  @Post('create-chess-problem')
+  @Post('/game/create-chess-problem')
   async createChessProblem(@Body() dto: CreateProblemDto) {
-    return this.ownerServiceService.createChessProblem(dto);
+    return await this.ownerServiceService.createChessProblem(dto);
   }
 
   @ApiOperation({ summary: 'Create a new problem category' })
@@ -60,7 +69,7 @@ export class OwnerServiceController {
   })
   @ApiBody({ type: CreateProblemCategoryDto })
   @Roles(Role.ADMIN)
-  @Post('create-problem-category')
+  @Post('/game/create-problem-category')
   async createProblemCategory(@Body() dto: CreateProblemCategoryDto) {
     return await this.ownerServiceService.createProblemCategory(dto);
   }
@@ -77,9 +86,9 @@ export class OwnerServiceController {
     description: 'ID of the chess problem',
   })
   @Roles(Role.ADMIN)
-  @Delete(':id/delete-chess-problem')
+  @Delete('/game/:id/delete-chess-problem')
   async deleteChessProblemById(@Param('id') id: number) {
-    return this.ownerServiceService.deleteChessProblemById(id);
+    return await this.ownerServiceService.deleteChessProblemById(id);
   }
 
   @ApiOperation({ summary: 'Delete a problem category by ID' })
@@ -94,10 +103,57 @@ export class OwnerServiceController {
     description: 'ID of the problem category',
   })
   @Roles(Role.ADMIN)
-  @Delete(':id/delete-problem-category')
+  @Delete('/game/:id/delete-problem-category')
   async deleteProblemCategoryById(@Param('id') id: number) {
-    return this.ownerServiceService.deleteProblemCategoryById(id);
+    return await this.ownerServiceService.deleteProblemCategoryById(id);
   }
+
+  /**
+   * @EventBasedProblems is a
+   *
+   * Daily Weekly or Monthly problems which will
+   * our application send to users
+   *
+   * @Important apis not completed yet
+   * 1. Will add Dto's
+   * 2. Will add decorators for swagger
+   */
+
+  @Roles(Role.SUPER_ADMIN)
+  @Post('/game/event-based-problem')
+  async createEventBasedProblem(@Body() dto: CreateDWMProblemDto) {
+    return await this.ownerServiceService.createEventBasedProblem(dto);
+  }
+
+  @Roles(Role.SUPER_ADMIN)
+  @Put('/game/event-based-problem')
+  async updateEventBasedProblem(@Body() dto: UpdateDWMProblemDto) {
+    return await this.ownerServiceService.updateEventBasedProblem(dto);
+  }
+
+  @Roles(Role.SUPER_ADMIN)
+  @Get('/game/:id/event-based-problem')
+  async getEventBasedProblemById(@Param('id') id: number) {
+    return await this.ownerServiceService.getEventBasedProblemById(id);
+  }
+
+  @Roles(Role.SUPER_ADMIN)
+  @Get('/game/event-based-problem')
+  async getEventBasedProblems() {
+    return await this.ownerServiceService.getEventBasedProblems();
+  }
+
+  @Roles(Role.SUPER_ADMIN)
+  @Delete('/game/:id/event-based-problem')
+  async deleteEventBasedProblem(@Param('id') id: number) {
+    return await this.ownerServiceService.deleteEventBasedProblem(id);
+  }
+
+  /**
+   * @User Management APIs
+   *
+   * apis for user creation, deletion, updation and fetching
+   */
 
   @ApiOperation({ summary: 'Create user with the specified fields' })
   @ApiResponse({
@@ -107,7 +163,7 @@ export class OwnerServiceController {
   })
   @ApiBody({ type: CreateUserDto, description: 'User creation data' })
   @Roles(Role.SUPER_ADMIN)
-  @Post('/create_user')
+  @Post('/user/create_user')
   async createUser(@Body() dto: CreateUserDto) {
     return await this.ownerServiceService.createUser(dto);
   }
@@ -127,7 +183,7 @@ export class OwnerServiceController {
     description: 'ID of the user to delete',
   })
   @Roles(Role.SUPER_ADMIN)
-  @Delete('/delete_user/:id')
+  @Delete('/user/delete_user/:id')
   async deleteUserById(@Param('id') id: number) {
     return await this.ownerServiceService.deleteUserById(id);
   }
@@ -149,7 +205,7 @@ export class OwnerServiceController {
   })
   @ApiBody({ type: UpdateUserDto, description: 'User update data' })
   @Roles(Role.SUPER_ADMIN)
-  @Patch('/update_user/:id')
+  @Patch('/user/update_user/:id')
   async updateUserById(@Param('id') id: number, @Body() dto: UpdateUserDto) {
     return await this.ownerServiceService.updateUserById(id, dto);
   }
@@ -170,7 +226,7 @@ export class OwnerServiceController {
     description: 'ID of the user',
   })
   @Roles(Role.SUPER_ADMIN)
-  @Get('/get_user/:id')
+  @Get('/user/get_user/:id')
   async getUserById(@Param('id') id: number) {
     return await this.ownerServiceService.getUserById(id);
   }
@@ -182,7 +238,7 @@ export class OwnerServiceController {
   })
   @ApiQuery({ type: PaginationDto })
   @Roles(Role.SUPER_ADMIN)
-  @Get('/get_users')
+  @Get('/user/get_users')
   async getUsers(@Pagination() dto: PaginationDto) {
     return await this.ownerServiceService.getUsers(dto);
   }

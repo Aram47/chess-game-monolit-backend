@@ -9,6 +9,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {
+  DWM,
   Theme,
   MoveType,
   IPvEGameRoom,
@@ -24,6 +25,8 @@ import {
   UserDecoratorDto,
   ProblemSnapshotDto,
   GetProblemsQueryDto,
+  CreateDWMProblemDto,
+  UpdateDWMProblemDto,
   CreateProblemCategoryDto,
 } from '../../common';
 import { Chess } from 'chess.js';
@@ -372,5 +375,65 @@ export class GameServiceService {
     await this.redisClient.del(`pve:room:${room.roomId}`);
 
     return room;
+  }
+
+
+
+
+
+
+  async createEventBasedProblem(dto: CreateDWMProblemDto) {
+    const problem = await this.chessProblemRepository.findOne({
+      where: { id: dto.problemId, isActive: true },
+    });
+
+    if (!problem) {
+      throw new NotFoundException('Problem not found');
+    }
+
+    await this.redisClient.set(dto.DWM_type.toString(), problem.id.toString());
+
+    return await this.redisClient.set(
+      problem.id.toString(),
+      JSON.stringify(problem),
+    );
+  }
+
+  async updateEventBasedProblem(dto: UpdateDWMProblemDto) {
+    const problem = await this.chessProblemRepository.findOne({
+      where: { id: dto.newProblemId, isActive: true },
+    });
+
+    if (!problem) {
+      throw new NotFoundException('Problem not found');
+    }
+
+    await this.redisClient.set(
+      dto.DWM_type.toString(),
+      dto.newProblemId.toString(),
+    );
+    await this.redisClient.del(dto.currentProblemId.toString());
+
+    return await this.redisClient.set(
+      dto.currentProblemId.toString(),
+      JSON.stringify(problem),
+    );
+  }
+
+  async getEventBasedProblemById(id: number) {
+    const problemRaw = await this.redisClient.get(id.toString());
+    if (!problemRaw) {
+      throw new NotFoundException('Event based problem not found');
+    }
+    return JSON.parse(problemRaw);
+  }
+
+  // This function will be used by Cron-Service to get problem by timing name
+  async getEventBasedProblemByTimingName(timingName: DWM) {}
+
+  async getEventBasedProblems() {}
+
+  async deleteEventBasedProblem(id: number) {
+    return await this.redisClient.del(id.toString());
   }
 }
