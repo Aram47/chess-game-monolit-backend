@@ -12,6 +12,7 @@ The API Gateway module:
 - Handles token management (login, logout, refresh)
 - Routes requests to appropriate backend services (UserService, AuthService)
 - Manages HTTP cookies for token storage
+- Enforces RBAC and ownership rules on protected endpoints
 
 ## Architecture
 
@@ -24,22 +25,21 @@ The module consists of:
 
 - `AuthModule`: For authentication operations
 - `UserModule`: For user management operations
-- `GameServiceModule`: For game-related operations
-- `OwnerServiceModule`: For owner/admin operations
-- `SnapshotServiceModule`: For snapshot operations
 
 ## API Endpoints
 
-### Authentication Endpoints
+### Authentication Endpoints (public)
 
 #### POST `/api/login`
 User login endpoint that authenticates users and returns JWT tokens.
 
+**Auth:** None (public)
+
 **Request Body:**
 ```typescript
 {
-  login: string;      // Email or username
-  password: string;    // User password
+  login: string;      // Email or username (3–255 chars)
+  password: string;   // User password (8–200 chars)
 }
 ```
 
@@ -47,28 +47,27 @@ User login endpoint that authenticates users and returns JWT tokens.
 - **Status:** 200 OK
 - **Body:** User object (without password)
 - **Cookies:** 
-  - `accessToken`: HTTP-only cookie with JWT access token
-  - `refreshToken`: HTTP-only cookie with JWT refresh token
+  - `accessToken`: HTTP-only, secure, sameSite=strict
+  - `refreshToken`: HTTP-only, secure, sameSite=strict
 
-**Flow:**
-1. Validates user credentials via `AuthService.login()`
-2. Generates access and refresh tokens
-3. Sets HTTP-only cookies for token storage
-4. Returns user information
+**Error Responses:**
+- **401 Unauthorized**: Invalid credentials
 
 ---
 
 #### POST `/api/register`
 User registration endpoint.
 
+**Auth:** None (public)
+
 **Request Body:**
 ```typescript
 {
-  name: string;
-  surname: string;
-  username: string;
-  password: string;    // Must be strong password (min 8 chars)
-  email: string;       // Valid email format
+  name: string;       // 2–50 chars
+  surname: string;    // 2–50 chars
+  username: string;   // 3–20 chars, unique
+  password: string;   // 8–30 chars, must be strong password
+  email: string;      // Valid email format, unique
 }
 ```
 
@@ -76,16 +75,15 @@ User registration endpoint.
 - **Status:** 201 Created
 - **Body:** Created user object (without password)
 
-**Flow:**
-1. Delegates to `UserService.createUser()`
-2. Hashes password using bcrypt
-3. Creates user and related data in database transaction
-4. Returns created user
+**Error Responses:**
+- **409 Conflict**: Email or username already exists
 
 ---
 
 #### POST `/api/refresh`
 Refreshes access and refresh tokens.
+
+**Auth:** None (public, requires `refreshToken` cookie)
 
 **Request:**
 - **Cookies:** `refreshToken` (required)
@@ -93,47 +91,43 @@ Refreshes access and refresh tokens.
 **Response:**
 - **Status:** 200 OK
 - **Body:** `{ message: 'Tokens refreshed successfully' }`
-- **Cookies:** 
-  - `accessToken`: New access token
-  - `refreshToken`: New refresh token
+- **Cookies:** New `accessToken` and `refreshToken`
 
-**Flow:**
-1. Extracts refresh token from cookies
-2. Validates refresh token via `AuthService.refresh()`
-3. Generates new token pair
-4. Updates cookies with new tokens
+**Error Responses:**
+- **400 Bad Request**: Refresh token cookie is missing
+- **401 Unauthorized**: Invalid or expired refresh token
 
 ---
 
 #### POST `/api/logout`
 User logout endpoint.
 
+**Auth:** None (public, clears cookies regardless)
+
 **Request:**
-- **Cookies:** `accessToken` (required)
+- **Cookies:** `accessToken` (optional — if present, verified before clearing)
 
 **Response:**
 - **Status:** 200 OK
 - **Body:** `{ message: 'Logged out successfully' }`
 - **Cookies:** Clears `accessToken` and `refreshToken`
 
-**Flow:**
-1. Extracts access token from cookies
-2. Validates token via `AuthService.logout()`
-3. Clears authentication cookies
-4. Returns success message
+> **Note:** Logout currently clears cookies on the client side. Token blacklisting is not implemented — tokens remain valid until expiry.
 
 ---
 
-### User Management Endpoints
+### User Management Endpoints (protected)
 
 #### GET `/api`
 Retrieves a paginated list of users.
 
+**Auth:** `AuthGuard` (requires valid `accessToken` cookie)
+
 **Query Parameters:**
-- `page`: Page number (default: 1)
-- `limit`: Items per page (default: 10)
-- `sortBy`: Field to sort by (default: 'id')
-- `sortDir`: Sort direction - 'ASC' or 'DESC' (default: 'DESC')
+- `page`: Page number (default: 1, min: 1)
+- `limit`: Items per page (default: 10, min: 10, max: 100)
+- `sortBy`: Field to sort by — `id` or `createdAt` (default: `id`)
+- `sortDir`: Sort direction — `ASC` or `DESC` (default: `DESC`)
 
 **Response:**
 - **Status:** 200 OK
@@ -150,44 +144,46 @@ Retrieves a paginated list of users.
 }
 ```
 
-**Flow:**
-1. Parses pagination parameters
-2. Delegates to `UserService.getUsers()`
-3. Returns paginated user list with metadata
+**Error Responses:**
+- **401 Unauthorized**: Missing or invalid access token
 
 ---
 
 #### GET `/api/:id`
 Retrieves a user by ID.
 
+**Auth:** `AuthGuard` (requires valid `accessToken` cookie)
+
 **Path Parameters:**
-- `id`: User ID (number)
+- `id`: User ID (positive integer, validated via `ParseIntPipe`)
 
 **Response:**
 - **Status:** 200 OK
 - **Body:** User object with related data
 
-**Flow:**
-1. Extracts user ID from path
-2. Delegates to `UserService.getUserById()`
-3. Returns user with joined `userRelatedData`
+**Error Responses:**
+- **401 Unauthorized**: Missing or invalid access token
+- **404 Not Found**: User not found
 
 ---
 
 #### PATCH `/api/:id`
 Updates a user by ID.
 
+**Auth:** `AuthGuard` (requires valid `accessToken` cookie)  
+**Authorization:** Users can only update their own profile. Admins (`ADMIN`, `SUPER_ADMIN`) can update any user.
+
 **Path Parameters:**
-- `id`: User ID (number)
+- `id`: User ID (positive integer, validated via `ParseIntPipe`)
 
 **Request Body:**
 ```typescript
 {
-  name?: string;
-  surname?: string;
-  username?: string;
-  email?: string;
-  // All fields are optional
+  name?: string;       // 2–50 chars
+  surname?: string;    // 2–50 chars
+  username?: string;   // 3–20 chars, unique
+  password?: string;   // 8–30 chars, strong password — will be bcrypt-hashed before storage
+  email?: string;      // Valid email format, unique
 }
 ```
 
@@ -195,18 +191,22 @@ Updates a user by ID.
 - **Status:** 200 OK
 - **Body:** Updated user object (without password)
 
-**Flow:**
-1. Extracts user ID and update data
-2. Delegates to `UserService.updateUserById()`
-3. Returns updated user
+**Error Responses:**
+- **401 Unauthorized**: Missing or invalid access token
+- **403 Forbidden**: Cannot update another user's profile (non-admin)
+- **404 Not Found**: User not found
+- **409 Conflict**: Email or username already exists
 
 ---
 
 #### DELETE `/api/:id`
-Deletes a user by ID.
+Deletes the current user's own account. Admin-level user deletion is handled by the owner-service.
+
+**Auth:** `AuthGuard` (requires valid `accessToken` cookie)  
+**Authorization:** Owner only — `:id` must match the authenticated user's `sub`.
 
 **Path Parameters:**
-- `id`: User ID (number)
+- `id`: User ID (positive integer, validated via `ParseIntPipe`)
 
 **Response:**
 - **Status:** 200 OK
@@ -214,31 +214,42 @@ Deletes a user by ID.
 ```typescript
 {
   deleted: true;
-  deletedUser: User;
+  deletedUser: User;  // without password
 }
 ```
 
-**Flow:**
-1. Extracts user ID from path
-2. Delegates to `UserService.deleteUserById()`
-3. Cascades deletion of related data
-4. Returns deletion confirmation
+**Error Responses:**
+- **401 Unauthorized**: Missing or invalid access token
+- **403 Forbidden**: Can only delete own account
+- **404 Not Found**: User not found
 
 ---
 
 ## Security Considerations
 
-1. **Token Storage**: Tokens are stored in HTTP-only cookies to prevent XSS attacks
-2. **Cookie Security**: Cookies use `secure: true` and `sameSite: 'strict'` flags
-3. **Password Handling**: Passwords are never returned in API responses
-4. **Error Handling**: Authentication errors return generic messages to prevent user enumeration
+1. **Authentication**: All user management endpoints require a valid `accessToken` cookie (enforced by `AuthGuard`)
+2. **Authorization**: Delete enforces ownership — users can only delete their own account. Admin user management is handled by the owner-service.
+3. **Token Storage**: Tokens are stored in HTTP-only cookies to prevent XSS attacks
+4. **Cookie Security**: Cookies use `secure: true` and `sameSite: 'strict'` flags
+5. **Password Handling**: Passwords are never returned in API responses; updates are bcrypt-hashed
+6. **Input Validation**: `ValidationPipe` with `whitelist` + `forbidNonWhitelisted` + `transform` is enabled globally
+7. **Error Handling**: Authentication errors return generic messages to prevent user enumeration
+8. **Path Params**: `:id` is validated via `ParseIntPipe` — non-integer values return 400
 
-## Error Responses
+## Known Limitations / TODO
 
+- **Token Blacklisting**: Logout does not invalidate tokens server-side — tokens are valid until expiry
+- **Refresh Token Rotation**: Refresh tokens are not tracked server-side — no family-based revocation
+- **Rate Limiting**: No rate limiting on login/register — vulnerable to brute-force attacks
+- **CORS**: Currently configured with `origin: true` (reflects any origin) — should be restricted to allowed origins
+
+## Error Responses Summary
+
+- **400 Bad Request**: Invalid input / missing required cookie
 - **401 Unauthorized**: Invalid credentials or expired token
+- **403 Forbidden**: Insufficient permissions
 - **404 Not Found**: User not found
 - **409 Conflict**: Email or username already exists
-- **500 Internal Server Error**: Server-side errors
 
 ## Integration Points
 

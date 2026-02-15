@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { AuthService } from '../auth/auth.service';
 import {
@@ -6,6 +6,7 @@ import {
   CreateUserDto,
   PaginationDto,
   UpdateUserDto,
+  UserDecoratorDto,
 } from '../../common';
 
 @Injectable()
@@ -27,11 +28,19 @@ export class ApiGatewayService {
     return await this.userService.getUsers(dto);
   }
 
-  async updateUserById(id: number, dto: UpdateUserDto) {
+  async updateUserById(id: number, dto: UpdateUserDto, currentUser: UserDecoratorDto) {
+    if (currentUser.sub !== id) {
+      throw new ForbiddenException('You can only update your own account');
+    }
+
     return await this.userService.updateUserById(id, dto);
   }
 
-  async deleteUserById(id: number) {
+  async deleteUserById(id: number, currentUser: UserDecoratorDto) {
+    if (currentUser.sub !== id) {
+      throw new ForbiddenException('You can only delete your own account');
+    }
+
     return await this.userService.deleteUserById(id);
   }
 

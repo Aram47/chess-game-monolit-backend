@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, DeleteResult } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Injectable,
@@ -13,7 +13,6 @@ import {
   UpdateUserDto,
   UserRelatedData,
 } from '../../common';
-import { DeleteResult } from 'typeorm/browser';
 
 @Injectable()
 export class UserService {
@@ -84,21 +83,34 @@ export class UserService {
   }
 
   async updateUserById(id: number, dto: UpdateUserDto) {
-    const result = await this.userRepository
-      .createQueryBuilder()
-      .update(User)
-      .set(dto)
-      .where('id = :id', { id })
-      .returning('*')
-      .execute();
-
-    const updatedUser = result.raw[0];
-
-    if (!updatedUser) {
-      throw new NotFoundException(`User with id ${id} not found`);
+    // If password is being updated, hash it before saving
+    if (dto.password) {
+      dto.password = await bcrypt.hash(dto.password, 10);
     }
 
-    return this.toUserResponse(updatedUser);
+    try {
+      const result = await this.userRepository
+        .createQueryBuilder()
+        .update(User)
+        .set(dto)
+        .where('id = :id', { id })
+        .returning('*')
+        .execute();
+
+      const updatedUser = result.raw[0];
+
+      if (!updatedUser) {
+        throw new NotFoundException(`User with id ${id} not found`);
+      }
+
+      return this.toUserResponse(updatedUser);
+    } catch (e: any) {
+      // Postgres unique violation (email or username conflict)
+      if (e?.code === '23505') {
+        throw new ConflictException('Email or username already exists');
+      }
+      throw e;
+    }
   }
 
   async getUsers(p: PaginationDto) {
