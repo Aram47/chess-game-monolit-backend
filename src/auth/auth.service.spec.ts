@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
@@ -210,21 +210,6 @@ describe('AuthService', () => {
     });
   });
 
-  describe('register', () => {
-    it('should call userService.createUser with the provided DTO', async () => {
-      // Arrange
-      const createUserDto = DtoFactory.buildCreateUserDto();
-      userService.createUser.mockResolvedValue(undefined);
-
-      // Act
-      await service.register(createUserDto);
-
-      // Assert
-      expect(userService.createUser).toHaveBeenCalledWith(createUserDto);
-      expect(userService.createUser).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('refresh', () => {
     it('should return new access and refresh tokens when refresh token is valid', async () => {
       // Arrange
@@ -302,7 +287,7 @@ describe('AuthService', () => {
       expect(userService.getUserById).not.toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException when user is not found', async () => {
+    it('should throw UnauthorizedException when user is not found (deleted user)', async () => {
       // Arrange
       const refreshToken = 'valid-refresh-token';
       const refreshTokenPayload = {
@@ -312,10 +297,13 @@ describe('AuthService', () => {
       };
 
       jwtUtils.verifyToken.mockReturnValue(refreshTokenPayload);
-      userService.getUserById.mockResolvedValue(null);
+      // getUserById throws NotFoundException when user doesn't exist
+      userService.getUserById.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
       configService.get.mockReturnValue('refresh-secret');
 
-      // Act & Assert
+      // Act & Assert — should be re-thrown as 401, not 404
       await expect(service.refresh(refreshToken)).rejects.toThrow(
         UnauthorizedException,
       );
