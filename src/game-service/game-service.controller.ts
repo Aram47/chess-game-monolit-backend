@@ -75,7 +75,7 @@ export class GameServiceController {
   @UseGuards(AuthGuard)
   @Post('/problems/:id/start')
   async startProblem(
-    @Param(':id') id: number,
+    @Param('id') id: number,
     @UserDecorator() userMetaData: UserDecoratorDto,
   ) {
     return await this.gameService.startProblem(id, userMetaData);
@@ -96,7 +96,7 @@ export class GameServiceController {
   @UseGuards(AuthGuard)
   @Post('/problems/:id/finsh')
   async finishProblem(
-    @Param(':id') id: number,
+    @Param('id') id: number,
     @UserDecorator() userMetaData: UserDecoratorDto,
   ) {
     return await this.gameService.finishProblem(id, userMetaData.sub);
@@ -117,7 +117,7 @@ export class GameServiceController {
   @UseGuards(AuthGuard)
   @Post('/problems/:id/move')
   async move(
-    @Param(':id') id: number,
+    @Param('id') id: number,
     @Body() dto: ProblemMoveDto,
     @UserDecorator() userMetaData: UserDecoratorDto,
   ) {
