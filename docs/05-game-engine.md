@@ -50,14 +50,15 @@ The service maintains a pool of Stockfish engine processes for concurrent move c
 The `getBestMove()` method calculates the best move for a given position:
 
 **Process:**
-1. Acquires an available engine from the pool
-2. Sends UCI commands to Stockfish:
+1. Validates FEN via chess.js (throws BadRequestException if invalid)
+2. Acquires an available engine from the pool
+3. Sends UCI commands to Stockfish:
    - `ucinewgame`: Starts a new game
    - `position fen {fen}`: Sets the position
    - `go movetime {time}`: Calculates best move with time limit
-3. Parses Stockfish output for best move
-4. Handles timeouts and errors
-5. Returns move in standardized format
+4. Parses Stockfish output for best move (rejects on parse failure)
+5. Handles timeouts, buffer overflow, and errors
+6. Returns move in standardized format
 
 **Timeout Handling:**
 - Default timeout: 2000ms (2 seconds)
@@ -167,9 +168,9 @@ Promise<MoveType>  // { from: string, to: string, promotion?: string }
 ```
 
 **Throws:**
-- `Error('Stockfish timeout')`: If calculation exceeds timeout
-- `Error('No legal moves')`: If no moves available
-- `Error('All Stockfish engines are busy')`: If pool is exhausted
+- `ServiceUnavailableException('Stockfish timeout')`: If calculation exceeds timeout
+- `BadRequestException('No legal moves')`: If no moves available
+- `ServiceUnavailableException('All Stockfish engines are busy')`: If pool is exhausted
 
 **Example:**
 ```typescript
@@ -251,6 +252,13 @@ The service communicates with Stockfish using the Universal Chess Interface (UCI
 3. **Difficulty Levels**: Different calculation times for varied bot strength
 4. **Round-Robin**: Ensures even load distribution
 5. **Process Management**: Automatic restart prevents resource leaks
+
+## Configuration
+
+Environment variables (optional, with defaults):
+- `STOCKFISH_ENGINES_POOL_SIZE` — pool size (default: 4)
+- `STOCKFISH_MOVE_TIMEOUT_MS` — move calculation timeout in ms (default: 2000)
+- `STOCKFISH_PATH` — path to Stockfish binary (default: `stockfish` from PATH)
 
 ## System Requirements
 

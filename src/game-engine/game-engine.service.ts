@@ -1,55 +1,70 @@
 import { spawn } from 'child_process';
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { MoveType, StockfishEngineWrapper } from '../../common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Chess } from 'chess.js';
+import {
+  MoveType,
+  StockfishEngineWrapper,
+  ENV_VARIABLES,
+  StockfishDefaults,
+  StockfishResponse,
+  DifficultyMovetimeMs,
+} from '../../common';
+
+type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
 @Injectable()
-export class GameEngineService implements OnModuleInit {
-  currentEngineIndex: number = 0;
-  ENGINES_POOL_DEFAULT_SIZE: number = 4;
-  stokfishEngines: StockfishEngineWrapper[];
+export class GameEngineService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(GameEngineService.name);
+  private currentEngineIndex = 0;
+  private stockfishEngines: StockfishEngineWrapper[] = [];
 
-  onModuleInit() {
-    this.stokfishEngines = new Array(this.ENGINES_POOL_DEFAULT_SIZE)
-      .fill(null)
-      .map(() => this.createEngine());
+  constructor(private readonly configService: ConfigService) {}
 
-    const cleanUp = () => {
-      console.log('Node.js exiting, killing all Stockfish engines...');
-      this.stokfishEngines.forEach((engine) => {
-        if (!engine.process.killed) engine.process.kill();
-      });
-    };
+  async onModuleInit() {
+    const poolSize =
+      this.configService.get<number>(
+        ENV_VARIABLES.STOCKFISH_ENGINES_POOL_SIZE,
+      ) ?? StockfishDefaults.ENGINES_POOL_SIZE;
 
-    process.on('exit', () => cleanUp()); // exit
-
-    process.on('SIGINT', () => {
-      // Ctrl+C
-      cleanUp();
-      process.exit();
-    });
-
-    process.on('SIGTERM', () => {
-      // docker stop / systemd
-      cleanUp();
-      process.exit();
-    });
-
-    process.on('uncaughtException', (err) => {
-      // error
-      console.error('Uncaught exception:', err);
-      cleanUp();
-      process.exit(1);
-    });
+    this.stockfishEngines = await Promise.all(
+      Array.from({ length: poolSize }, () => this.createEngine()),
+    );
   }
 
-  async getBestMove(
-    fen: string,
-    level: 'easy' | 'medium' | 'hard',
-  ): Promise<MoveType> {
-    const engine = this.getEngine();
+  async onModuleDestroy() {
+    this.cleanUp();
+  }
+
+  private cleanUp() {
+    for (const engine of this.stockfishEngines) {
+      try {
+        if (!engine.process.killed) {
+          engine.process.kill();
+        }
+      } catch (e) {
+        this.logger.error('Error killing Stockfish engine', e);
+      }
+    }
+    this.stockfishEngines = [];
+  }
+
+  async getBestMove(fen: string, level: DifficultyLevel): Promise<MoveType> {
+    this.validateFen(fen);
+
+    const engine = await this.getEngine();
+    const timeoutMs =
+      this.configService.get<number>(ENV_VARIABLES.STOCKFISH_MOVE_TIMEOUT_MS) ??
+      StockfishDefaults.MOVE_TIMEOUT_MS;
 
     return new Promise<MoveType>((resolve, reject) => {
-      const timeoutMs = 2000;
       let done = false;
 
       const timeoutId = setTimeout(() => {
@@ -59,12 +74,14 @@ export class GameEngineService implements OnModuleInit {
         engine.process.stdout.off('data', onData);
         engine.busy = false;
 
-        const index = this.stokfishEngines.indexOf(engine);
+        const index = this.stockfishEngines.indexOf(engine);
         if (index !== -1) {
-          this.restartEngine(index);
+          this.restartEngine(index).catch((err) =>
+            this.logger.error('Failed to restart Stockfish engine', err),
+          );
         }
 
-        reject(new Error('Stockfish timeout'));
+        reject(new ServiceUnavailableException('Stockfish timeout'));
       }, timeoutMs);
 
       let buffer = '';
@@ -72,24 +89,42 @@ export class GameEngineService implements OnModuleInit {
       const onData = (data: Buffer) => {
         if (done) return;
 
-        buffer += data.toString();
+        const chunk = data.toString();
+        if (
+          buffer.length + chunk.length >
+          StockfishDefaults.MAX_OUTPUT_BUFFER_BYTES
+        ) {
+          done = true;
+          clearTimeout(timeoutId);
+          engine.process.stdout.off('data', onData);
+          engine.busy = false;
+          reject(new ServiceUnavailableException('Stockfish output buffer overflow'));
+          return;
+        }
 
-        if (!buffer.includes('bestmove')) return;
+        buffer += chunk;
+
+        if (!buffer.includes(StockfishResponse.BESTMOVE)) return;
 
         done = true;
         clearTimeout(timeoutId);
 
         const match = buffer.match(/bestmove\s(\S+)/);
         buffer = '';
-        if (!match) return;
 
         engine.process.stdout.off('data', onData);
         engine.busy = false;
 
+        if (!match) {
+          reject(new ServiceUnavailableException('Failed to parse Stockfish output'));
+          return;
+        }
+
         const move = match[1];
 
         if (move === '(none)') {
-          return reject(new Error('No legal moves'));
+          reject(new BadRequestException('No legal moves'));
+          return;
         }
 
         resolve({
@@ -102,10 +137,14 @@ export class GameEngineService implements OnModuleInit {
       engine.process.stdout.on('data', onData);
 
       try {
+        if (engine.process.killed) {
+          engine.busy = false;
+          reject(new ServiceUnavailableException('Stockfish process is not running'));
+          return;
+        }
+
         engine.process.stdin.write('ucinewgame\n');
         engine.process.stdin.write(`position fen ${fen}\n`);
-
-        // hier we choose one variant
         this.sendGoCommand(engine, level);
       } catch (err) {
         clearTimeout(timeoutId);
@@ -116,73 +155,120 @@ export class GameEngineService implements OnModuleInit {
     });
   }
 
+  private validateFen(fen: string): void {
+    try {
+      new Chess(fen);
+    } catch {
+      throw new BadRequestException('Invalid FEN position');
+    }
+  }
+
   private sendGoCommand(
     engine: StockfishEngineWrapper,
-    level: 'easy' | 'medium' | 'hard',
-  ) {
-    const map = {
-      easy: Math.random() < 0.3 ? 50 : 150,
-      medium: 300,
-      hard: 600,
-    };
-
-    engine.process.stdin.write(`go movetime ${map[level]}\n`);
+    level: DifficultyLevel,
+  ): void {
+    const movetimeMs = this.getMovetimeMs(level);
+    engine.process.stdin.write(`go movetime ${movetimeMs}\n`);
   }
 
-  private createEngine(): StockfishEngineWrapper {
-    const engine = spawn('stockfish');
-
-    engine.stdin.write('uci\n');
-    engine.stdin.write('isready\n');
-
-    engine.stderr.on('data', (data) =>
-      console.error('Stockfish stderr:', data.toString()),
-    );
-    engine.on('exit', (code) => {
-      console.error('Stockfish exited with code', code);
-    });
-
-    engine.on('close', () => {
-      console.error('Stockfish closed');
-    });
-    engine.on('error', (err) => console.error('Stockfish failed:', err));
-
-    return {
-      process: engine,
-      busy: false,
+  private getMovetimeMs(level: DifficultyLevel): number {
+    const map: Record<DifficultyLevel, number> = {
+      easy:
+        Math.random() < 0.3
+          ? DifficultyMovetimeMs.easy[0]
+          : DifficultyMovetimeMs.easy[1],
+      medium: DifficultyMovetimeMs.medium,
+      hard: DifficultyMovetimeMs.hard,
     };
+    return map[level] ?? DifficultyMovetimeMs.medium;
   }
 
-  private restartEngine(index: number) {
-    const oldEngine = this.stokfishEngines[index];
+  private createEngine(): Promise<StockfishEngineWrapper> {
+    return new Promise((resolve, reject) => {
+      const path = this.configService.get<string>(ENV_VARIABLES.STOCKFISH_PATH);
+      const binaryPath =
+        path?.trim() || StockfishDefaults.BINARY_PATH;
+      const engine = spawn(binaryPath);
+      const initTimeoutMs = StockfishDefaults.INIT_TIMEOUT_MS;
+
+      const timeoutId = setTimeout(() => {
+        engine.stdout.off('data', onReady);
+        if (!engine.killed) {
+          engine.kill();
+        }
+        reject(new ServiceUnavailableException('Stockfish init timeout: no readyok response'));
+      }, initTimeoutMs);
+
+      engine.on('error', (err) => {
+        clearTimeout(timeoutId);
+        this.logger.error('Stockfish spawn failed', err);
+        reject(new ServiceUnavailableException('Stockfish spawn failed', { cause: err }));
+      });
+
+      engine.stderr.on('data', (data) =>
+        this.logger.debug(`Stockfish stderr: ${data.toString()}`),
+      );
+      engine.on('exit', (code) => {
+        this.logger.warn(`Stockfish exited with code ${code}`);
+      });
+      engine.on('close', () => {
+        this.logger.warn('Stockfish closed');
+      });
+
+      let buffer = '';
+      const onReady = (data: Buffer) => {
+        buffer += data.toString();
+        if (buffer.includes(StockfishResponse.READYOK)) {
+          clearTimeout(timeoutId);
+          engine.stdout.off('data', onReady);
+          resolve({
+            process: engine,
+            busy: false,
+          });
+        }
+      };
+
+      engine.stdout.on('data', onReady);
+      engine.stdin.write('uci\n');
+      engine.stdin.write('isready\n');
+    });
+  }
+
+  private async restartEngine(index: number): Promise<StockfishEngineWrapper> {
+    const oldEngine = this.stockfishEngines[index];
 
     try {
-      if (!oldEngine.process.killed) {
-        oldEngine.process.kill();
+      if (!oldEngine?.process.killed) {
+        oldEngine?.process.kill();
       }
     } catch (e) {
-      console.error('Error killing Stockfish:', e);
+      this.logger.error('Error killing Stockfish', e);
     }
 
-    console.log(`Restarting Stockfish engine at index ${index}`);
-
-    this.stokfishEngines[index] = this.createEngine();
+    const newEngine = await this.createEngine();
+    this.stockfishEngines[index] = newEngine;
+    return newEngine;
   }
 
-  private getEngine(): StockfishEngineWrapper {
-    const enginesCount = this.stokfishEngines.length;
+  private async getEngine(): Promise<StockfishEngineWrapper> {
+    const enginesCount = this.stockfishEngines.length;
+
+    if (enginesCount === 0) {
+      throw new ServiceUnavailableException(
+        'Stockfish engine pool is empty (service may be shutting down)',
+      );
+    }
 
     for (let i = 0; i < enginesCount; i++) {
       const index = this.currentEngineIndex;
       this.currentEngineIndex = (this.currentEngineIndex + 1) % enginesCount;
 
-      const engine = this.stokfishEngines[index];
+      const engine = this.stockfishEngines[index];
 
-      // if process killed we restart it
       if (engine.process.killed) {
-        this.restartEngine(index);
-        this.stokfishEngines[index].busy = true;
-        return this.stokfishEngines[index];
+        const newEngine = await this.restartEngine(index);
+        newEngine.busy = true;
+        return newEngine;
       }
 
       if (!engine.busy) {
@@ -191,6 +277,6 @@ export class GameEngineService implements OnModuleInit {
       }
     }
 
-    throw new Error('All Stockfish engines are busy');
+    throw new ServiceUnavailableException('All Stockfish engines are busy');
   }
 }

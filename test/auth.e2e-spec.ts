@@ -213,16 +213,14 @@ describe('Auth (e2e)', () => {
       expect(response.body).not.toHaveProperty('password');
       const setCookieHeader = response.headers['set-cookie'];
       expect(setCookieHeader).toBeDefined();
-      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
       expect(
-        cookies.some((cookie: string) =>
-          cookie.includes('accessToken'),
-        ),
+        cookies.some((cookie: string) => cookie.includes('accessToken')),
       ).toBe(true);
       expect(
-        cookies.some((cookie: string) =>
-          cookie.includes('refreshToken'),
-        ),
+        cookies.some((cookie: string) => cookie.includes('refreshToken')),
       ).toBe(true);
     });
 
@@ -333,7 +331,9 @@ describe('Auth (e2e)', () => {
 
       // Extract refresh token cookie
       const setCookieHeader = loginResponse.headers['set-cookie'];
-      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
       refreshTokenCookie = cookies.find((cookie: string) =>
         cookie.includes('refreshToken'),
       );
@@ -352,24 +352,20 @@ describe('Auth (e2e)', () => {
       });
       const setCookieHeader = response.headers['set-cookie'];
       expect(setCookieHeader).toBeDefined();
-      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
       expect(
-        cookies.some((cookie: string) =>
-          cookie.includes('accessToken'),
-        ),
+        cookies.some((cookie: string) => cookie.includes('accessToken')),
       ).toBe(true);
       expect(
-        cookies.some((cookie: string) =>
-          cookie.includes('refreshToken'),
-        ),
+        cookies.some((cookie: string) => cookie.includes('refreshToken')),
       ).toBe(true);
     });
 
     it('should return 401 when refresh token is missing', async () => {
       // Act & Assert
-      await request(app.getHttpServer())
-        .post('/api/refresh')
-        .expect(401);
+      await request(app.getHttpServer()).post('/api/refresh').expect(401);
     });
 
     it('should return 401 when refresh token is invalid', async () => {
@@ -413,7 +409,9 @@ describe('Auth (e2e)', () => {
 
       // Extract access token cookie
       const setCookieHeader = loginResponse.headers['set-cookie'];
-      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader];
       accessTokenCookie = cookies.find((cookie: string) =>
         cookie.includes('accessToken'),
       );
@@ -433,7 +431,9 @@ describe('Auth (e2e)', () => {
       // Check that cookies are cleared
       const setCookieHeader = response.headers['set-cookie'];
       if (setCookieHeader) {
-        const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+        const cookies = Array.isArray(setCookieHeader)
+          ? setCookieHeader
+          : [setCookieHeader];
         cookies.forEach((cookie: string) => {
           expect(cookie).toMatch(/accessToken=.*Max-Age=0/);
           expect(cookie).toMatch(/refreshToken=.*Max-Age=0/);
@@ -443,9 +443,7 @@ describe('Auth (e2e)', () => {
 
     it('should return 401 when access token is missing', async () => {
       // Act & Assert
-      await request(app.getHttpServer())
-        .post('/api/logout')
-        .expect(401);
+      await request(app.getHttpServer()).post('/api/logout').expect(401);
     });
 
     it('should return 401 when access token is invalid', async () => {

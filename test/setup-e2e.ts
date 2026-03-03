@@ -3,18 +3,14 @@
  * This file runs before all e2e tests to configure the environment
  */
 
-// Set NODE_ENV to development so tests load .env.development
-// Tests run on host machine, so they connect to localhost (Docker exposed ports)
-if (!process.env.NODE_ENV) {
-  process.env.NODE_ENV = 'development';
-}
-
-// Load environment variables from .env.development if it exists
-// This ensures tests can connect to Docker containers via localhost
+// E2E tests run on host and connect to Docker containers via localhost
+// Use .env.development to match docker-compose configuration (POSTGRES_DB, etc.)
 import * as fs from 'fs';
 import * as path from 'path';
 
-const envPath = path.join(__dirname, '..', `.env.${process.env.NODE_ENV}`);
+const projectRoot = path.join(__dirname, '..');
+const envPath =
+  path.join(projectRoot, '.env.development');
 if (fs.existsSync(envPath)) {
   const envFile = fs.readFileSync(envPath, 'utf-8');
   envFile.split('\n').forEach((line) => {
@@ -35,7 +31,9 @@ if (fs.existsSync(envPath)) {
   console.log(`Loaded environment variables from: ${envPath}`);
 } else {
   console.warn(`Warning: Environment file not found at ${envPath}`);
-  console.warn('Make sure .env.development exists with required database credentials');
+  console.warn(
+    'Make sure .env.development exists with required database credentials',
+  );
 }
 
 // Override database hosts to use localhost for tests running on host machine
@@ -44,25 +42,29 @@ process.env.POSTGRES_HOST = 'localhost';
 process.env.MONGO_HOST = 'localhost';
 process.env.REDIS_HOST = 'localhost';
 
-// Override ports to match Docker exposed ports
-// Note: Redis uses 6380 on host to avoid conflict with local Redis on 6379
-// These overrides ensure tests connect to the correct Docker container ports
-process.env.POSTGRES_PORT = '5432';
-process.env.MONGO_PORT = '27017';
-process.env.REDIS_PORT = '6380';
+// Override ports to match Docker exposed ports (from .env.development / docker-compose)
+process.env.POSTGRES_PORT = process.env.POSTGRES_PORT || '5432';
+process.env.MONGO_PORT = process.env.MONGO_PORT || '27017';
+process.env.REDIS_PORT = process.env.REDIS_PORT || '6380';
 
 // Ensure password is always a string (even if empty) to avoid TypeORM errors
 // PostgreSQL requires password to be a string, not undefined or null
 // For Docker PostgreSQL containers, if no password is set, use a default test password
 // Note: These defaults match the Docker container configuration
 // If your Docker container uses different values, create .env.development with the correct values
-if (process.env.POSTGRES_PASSWORD !== undefined && process.env.POSTGRES_PASSWORD !== null && process.env.POSTGRES_PASSWORD !== '') {
+if (
+  process.env.POSTGRES_PASSWORD !== undefined &&
+  process.env.POSTGRES_PASSWORD !== null &&
+  process.env.POSTGRES_PASSWORD !== ''
+) {
   process.env.POSTGRES_PASSWORD = String(process.env.POSTGRES_PASSWORD);
 } else {
   // Default password for test environments - matches Docker container default
   process.env.POSTGRES_PASSWORD = 'admin';
   console.warn('Warning: POSTGRES_PASSWORD is not set. Using default "admin".');
-  console.warn('If your Docker container uses a different password, create .env.development with POSTGRES_PASSWORD=your_password');
+  console.warn(
+    'If your Docker container uses a different password, create .env.development with POSTGRES_PASSWORD=your_password',
+  );
 }
 
 // Ensure other required PostgreSQL variables are strings
@@ -103,6 +105,10 @@ console.log(`  POSTGRES_HOST: ${process.env.POSTGRES_HOST}`);
 console.log(`  POSTGRES_PORT: ${process.env.POSTGRES_PORT}`);
 console.log(`  POSTGRES_USER: ${process.env.POSTGRES_USER}`);
 console.log(`  POSTGRES_DB: ${process.env.POSTGRES_DB}`);
-console.log(`  POSTGRES_PASSWORD: ${process.env.POSTGRES_PASSWORD ? '***' : '(not set)'}`);
+console.log(
+  `  POSTGRES_PASSWORD: ${process.env.POSTGRES_PASSWORD ? '***' : '(not set)'}`,
+);
 console.log(`  JWT_SECRET: ${process.env.JWT_SECRET ? '***' : '(not set)'}`);
-console.log(`  JWT_REFRESH_SECRET: ${process.env.JWT_REFRESH_SECRET ? '***' : '(not set)'}`);
+console.log(
+  `  JWT_REFRESH_SECRET: ${process.env.JWT_REFRESH_SECRET ? '***' : '(not set)'}`,
+);
