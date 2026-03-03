@@ -13,9 +13,8 @@ export async function buildTestApp(
   moduleMetadata: any,
   additionalSetup?: (app: INestApplication) => void | Promise<void>,
 ): Promise<INestApplication> {
-  const moduleFixture: TestingModule = await Test.createTestingModule(
-    moduleMetadata,
-  ).compile();
+  const moduleFixture: TestingModule =
+    await Test.createTestingModule(moduleMetadata).compile();
 
   const app = moduleFixture.createNestApplication();
 

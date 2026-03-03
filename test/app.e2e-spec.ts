@@ -16,8 +16,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('/api (GET) - should return paginated users', () => {
-    return request(app.getHttpServer())
-      .get('/api')
-      .expect(200);
+    return request(app.getHttpServer()).get('/api').expect(200);
   });
 });

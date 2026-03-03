@@ -9,7 +9,9 @@ export class DtoFactory {
     };
   }
 
-  static buildCreateUserDto(overrides: Partial<CreateUserDto> = {}): CreateUserDto {
+  static buildCreateUserDto(
+    overrides: Partial<CreateUserDto> = {},
+  ): CreateUserDto {
     return {
       name: 'John',
       surname: 'Doe',

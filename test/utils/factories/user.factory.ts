@@ -8,7 +8,8 @@ export class UserFactory {
       surname: 'Doe',
       username: 'johndoe',
       email: 'john.doe@example.com',
-      password: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV',
+      password:
+        '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV',
       createdAt: new Date('2025-01-01T00:00:00Z'),
       updatedAt: new Date('2025-01-01T00:00:00Z'),
       userRelatedData: {
@@ -32,7 +33,10 @@ export class UserFactory {
     return defaultUser;
   }
 
-  static buildWithPassword(password: string, overrides: Partial<User> = {}): User {
+  static buildWithPassword(
+    password: string,
+    overrides: Partial<User> = {},
+  ): User {
     return this.build({
       ...overrides,
       password: password, // In tests, we'll use bcrypt.hashSync or mock
