@@ -12,7 +12,7 @@ The Socket Service module:
 - Handles game moves with optimistic locking
 - Manages game state in Redis
 - Supports reconnection and disconnect handling
-- Integrates with Stockfish for move validation
+- Uses **chess.js** (not Stockfish) for move validation and game-state evolution
 
 ## Architecture
 
@@ -296,9 +296,18 @@ Emitted when matchmaking encounters an error.
 ### Waiting Queue
 **Key:** `chess:waiting_queue`
 
-**Structure:** Redis sorted set or list (managed by Lua scripts)
+**Structure:** A **single JSON value** representing the waiting player (managed atomically by the `MatchMakeAtomicLuaScript`). When empty, the key does not exist; when occupied, it contains:
 
-**Purpose:** Stores users waiting for match
+```typescript
+{
+  userId: string;
+  socketId: string;
+}
+```
+
+**Purpose:** Stores a single player currently waiting for a match. The Lua script:
+- Places the first player into this slot with a TTL
+- When a second player arrives, consumes this value and creates a new game room for the pair
 
 ---
 

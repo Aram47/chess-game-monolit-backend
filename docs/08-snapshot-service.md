@@ -106,19 +106,23 @@ Stores a problem-solving snapshot.
 
 ### `storeGameResultSnapshot(room: IPvPGameRoom | IPvEGameRoom)`
 
-Stores a game result snapshot.
+Stores a game result snapshot, delegating to the appropriate helper based on game type.
 
 **Parameters:**
 - `room`: Game room object (PvP or PvE)
 
 **Returns:**
-- Created GameSnapshot document (for PvP)
-- Currently returns undefined for PvE (not implemented)
+- Created `GameSnapshot` document for PvP games
+- For PvE games, the implementation is currently a stub (no document is written yet)
 
 **Flow:**
-1. Determines game type (PvP or PvE)
-2. Routes to appropriate storage method
-3. Stores snapshot in MongoDB
+1. Uses `isBotRoom(room)` type guard to determine if this is PvE or PvP
+2. For PvP:
+   - Calls `storePvPGameResult(room)`
+   - Persists a `GameSnapshot` document in MongoDB
+3. For PvE:
+   - Calls `storePvEGameResult(room)`
+   - Current implementation logs the room and does **not** persist a snapshot (this is intentionally left for future work)
 
 ---
 

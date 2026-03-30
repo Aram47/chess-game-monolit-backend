@@ -258,8 +258,13 @@ Makes a move in a problem.
 
 **Request Body:**
 ```typescript
+// ProblemMoveDto
 {
-  move: string;  // Move in UCI format (e.g., "e2e4")
+  move: {
+    from: string;       // Square (e.g., "e2")
+    to: string;         // Square (e.g., "e4")
+    promotion?: string; // Optional promotion piece
+  };
 }
 ```
 
@@ -271,10 +276,17 @@ Makes a move in a problem.
 ```
 
 **Flow:**
-1. Validates session exists
-2. Validates move legality
-3. Compares with solution
-4. Updates session or marks as solved
+1. Validates session exists in Redis
+2. Reconstructs current position by replaying previous `userMoves` on top of initial `fen`
+3. Validates user move legality with chess.js
+4. Compares the **applied move**’s `from`/`to` with the expected solution move at the current index
+5. On mismatch, rejects with `Wrong move`
+6. On match, appends move; if all solution moves are completed:
+   - Creates `ProblemSnapshot` DTO (with `theme`/`level` currently left empty in implementation)
+   - Persists snapshot via `SnapshotServiceService`
+   - Deletes Redis session
+   - Returns `status: 'solved'`
+7. If not solved, writes updated session back to Redis and returns `status: 'move accepted'`
 
 ---
 
