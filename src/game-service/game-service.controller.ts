@@ -31,6 +31,7 @@ import {
 } from '@nestjs/swagger';
 
 @ApiTags('Game Service')
+@UseGuards(AuthGuard)
 @Controller('/game')
 export class GameServiceController {
   constructor(private readonly gameService: GameServiceService) {}
@@ -42,7 +43,6 @@ export class GameServiceController {
     type: ChessProblem,
   })
   @ApiQuery({ type: GetProblemsQueryDto })
-  @UseGuards(AuthGuard)
   @Get('/problems')
   async getProblems(
     @Pagination() dto: PaginationDto,
@@ -72,7 +72,6 @@ export class GameServiceController {
     description: 'ID of the problem to start',
     type: Number,
   })
-  @UseGuards(AuthGuard)
   @Post('/problems/:id/start')
   async startProblem(
     @Param('id') id: number,
@@ -93,7 +92,6 @@ export class GameServiceController {
     description: 'ID of the problem to finish',
     type: Number,
   })
-  @UseGuards(AuthGuard)
   @Post('/problems/:id/finsh')
   async finishProblem(
     @Param('id') id: number,
@@ -114,7 +112,6 @@ export class GameServiceController {
     type: Number,
   })
   @ApiBody({ type: ProblemMoveDto })
-  @UseGuards(AuthGuard)
   @Post('/problems/:id/move')
   async move(
     @Param('id') id: number,
@@ -124,13 +121,11 @@ export class GameServiceController {
     return await this.gameService.makeMove(id, userMetaData.sub, dto);
   }
 
-  @UseGuards(AuthGuard)
   @Post('/start')
   async startGameWithBot(@UserDecorator() userMetaData: UserDecoratorDto) {
     return await this.gameService.startGameWithBot(userMetaData);
   }
 
-  @UseGuards(AuthGuard)
   @Post('/move/:id')
   async makeMoveInTheGameWithBot(
     @Param('id') roomId: string,
