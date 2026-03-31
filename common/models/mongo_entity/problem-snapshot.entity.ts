@@ -23,7 +23,7 @@ export class ProblemSnapshot {
   level: string;
 
   @Prop({ required: true, type: Date })
-  solevedAt: Date;
+  solvedAt: Date;
 
   @Prop({ required: true, type: Number })
   durationMs: number;

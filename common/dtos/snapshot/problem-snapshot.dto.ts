@@ -19,7 +19,7 @@ export class ProblemSnapshotDto {
   @IsString()
   level: string;
 
-  solevedAt: Date;
+  solvedAt: Date;
 
   durationMs: number;
 }

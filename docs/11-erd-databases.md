@@ -114,7 +114,7 @@ erDiagram
     string finalFen
     string theme
     string level
-    date solevedAt
+    date solvedAt
     number durationMs
   }
 ```

@@ -184,7 +184,7 @@ Any controller decorated with `@UseGuards(AuthGuard)` (and optionally `RolesGuar
      7. Pushes user move into `session.userMoves`.
      8. If all solution moves completed (problem solved):
         - Builds `ProblemSnapshotDto`:
-          - `userId`, `problemId` (strings), `finalFen`, `solevedAt`, `durationMs`, `moves`.
+          - `userId`, `problemId` (strings), `finalFen`, `solvedAt`, `durationMs`, `moves`.
           - `theme` and `level` are currently left empty and would need enrichment if used in analytics.
         - Calls `finishProblemInternal(snapshotDto)` → `SnapshotServiceService.storeProblemSnapshot(snapshotDto)` → Mongo `ProblemSnapshot` document.
         - Deletes Redis session.

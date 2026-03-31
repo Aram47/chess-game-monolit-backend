@@ -86,7 +86,7 @@ Stores a problem-solving snapshot.
   userId: string;
   problemId: string;
   finalFen: string;
-  solevedAt: Date;
+  solvedAt: Date;
   durationMs: number;
   moves: MoveType[];
   theme: string;
@@ -195,7 +195,7 @@ Stores a Player vs Bot game snapshot.
   moves: MoveType[];
   theme: string;
   level: string;
-  solevedAt: Date;
+  solvedAt: Date;
   durationMs: number;
   createdAt: Date;
   updatedAt: Date;

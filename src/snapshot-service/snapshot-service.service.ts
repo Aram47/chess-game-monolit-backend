@@ -29,7 +29,7 @@ export class SnapshotServiceService {
       userId: snapshot.userId,
       finalFen: snapshot.finalFen,
       problemId: snapshot.problemId,
-      solevedAt: snapshot.solevedAt,
+      solvedAt: snapshot.solvedAt,
       durationMs: snapshot.durationMs,
     });
 
@@ -57,7 +57,7 @@ export class SnapshotServiceService {
       gameCreatedAt: room.createdAt,
       isCheckmate: room.isCheckmate,
     });
-    
+
     await createGameSnapshot.save();
 
     return createGameSnapshot;

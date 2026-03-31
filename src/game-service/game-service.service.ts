@@ -160,7 +160,7 @@ export class GameServiceService {
         userId: String(session.userId),
         problemId: String(session.problemId),
         finalFen: chess.fen(),
-        solevedAt: new Date(),
+        solvedAt: new Date(),
         durationMs: Date.now() - session.startedAt,
         moves: session.userMoves,
         theme: '', // to be fetched
