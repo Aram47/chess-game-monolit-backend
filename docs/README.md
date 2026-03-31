@@ -70,6 +70,11 @@ This directory contains comprehensive documentation for all modules in the Chess
    - Mongo snapshot collection schema map
    - Logical user/problem linking across databases
 
+12. **[Analysis Data Improvements](./12-analysis-data-improvements.md)** - Snapshot and move-data evolution plan
+   - Current capabilities and gaps
+   - Prioritized improvements (P0/P1/P2)
+   - Checklist for analytics-ready backend data
+
 ---
 
 ## Architecture Overview
