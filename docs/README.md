@@ -60,6 +60,16 @@ This directory contains comprehensive documentation for all modules in the Chess
    - Game result storage
    - MongoDB persistence
 
+10. **[Program Flow](./10-program-flow.md)** - End-to-end backend runtime flow
+   - Bootstrap and request lifecycle
+   - HTTP and WebSocket flows
+   - Postgres/Mongo/Redis interactions
+
+11. **[Database ERDs](./11-erd-databases.md)** - PostgreSQL, MongoDB, and cross-DB links
+   - PostgreSQL entity relationships
+   - Mongo snapshot collection schema map
+   - Logical user/problem linking across databases
+
 ---
 
 ## Architecture Overview
