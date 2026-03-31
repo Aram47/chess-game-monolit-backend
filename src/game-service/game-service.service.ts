@@ -153,9 +153,9 @@ export class GameServiceService {
 
     session.userMoves.push({ from: move.from, to: move.to });
 
-    const isSloved = session.userMoves.length === session.solutionMoves.length;
+    const isSolved = session.userMoves.length === session.solutionMoves.length;
 
-    if (isSloved) {
+    if (isSolved) {
       const snapshotDto: ProblemSnapshotDto = {
         userId: String(session.userId),
         problemId: String(session.problemId),

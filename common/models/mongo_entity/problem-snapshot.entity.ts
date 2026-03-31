@@ -2,7 +2,7 @@ import { Document } from 'mongoose';
 import { MoveType } from '../../libs/';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
-Schema({ timestamps: true, versionKey: false });
+@Schema({ timestamps: true, versionKey: false })
 export class ProblemSnapshot {
   @Prop({ required: true, type: String })
   userId: string;
@@ -16,8 +16,10 @@ export class ProblemSnapshot {
   @Prop({ required: true, type: String })
   finalFen: string;
 
+  @Prop({ required: true, type: String })
   theme: string;
 
+  @Prop({ required: true, type: String })
   level: string;
 
   @Prop({ required: true, type: Date })
