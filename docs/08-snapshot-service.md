@@ -62,7 +62,7 @@ The `storeGameResultSnapshot()` method stores completed game data:
 
 **Game Types:**
 - **PvP Games**: Player vs Player games
-- **PvE Games**: Player vs Bot games (currently not fully implemented)
+- **PvE Games**: Player vs Bot games
 
 **Snapshot Data (PvP):**
 - Game FEN (final position)
@@ -113,7 +113,7 @@ Stores a game result snapshot, delegating to the appropriate helper based on gam
 
 **Returns:**
 - Created `GameSnapshot` document for PvP games
-- For PvE games, the implementation is currently a stub (no document is written yet)
+- Created `GameSnapshot` document for PvE games
 
 **Flow:**
 1. Uses `isBotRoom(room)` type guard to determine if this is PvE or PvP
@@ -122,7 +122,7 @@ Stores a game result snapshot, delegating to the appropriate helper based on gam
    - Persists a `GameSnapshot` document in MongoDB
 3. For PvE:
    - Calls `storePvEGameResult(room)`
-   - Current implementation logs the room and does **not** persist a snapshot (this is intentionally left for future work)
+   - Persists a `GameSnapshot` document in MongoDB with `isBot: true`
 
 ---
 
@@ -174,12 +174,12 @@ Stores a Player vs Player game snapshot.
 
 Stores a Player vs Bot game snapshot.
 
-**Status:** Not fully implemented
+**Status:** Implemented
 
-**Note:** The service currently logs the room but doesn't store it. Consider implementing:
-- Separate collection for PvE games
-- Different schema for bot games
-- Bot difficulty level tracking
+**Stored Data Highlights:**
+- `isBot: true`
+- `black: 'bot'`
+- `allMoves`, `fen`, result flags, timestamps
 
 ---
 
@@ -212,6 +212,7 @@ Stores a Player vs Bot game snapshot.
   allMoves: MoveType[];
   winnerId?: string;
   winnerColor?: 'white' | 'black' | 'draw';
+  isBot: boolean;
   isDraw: boolean;
   isCheckmate: boolean;
   finishedAt: number;

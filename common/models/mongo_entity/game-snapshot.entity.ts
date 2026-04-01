@@ -26,8 +26,11 @@ export class GameSnapshot {
   @Prop({ required: true, type: String })
   winnerColor: string;
 
-  @Prop({ required: true, type: String })
-  winnerId: string;
+  @Prop({ required: false, type: String, default: null })
+  winnerId?: string;
+
+  @Prop({ required: true, type: Boolean, default: false })
+  isBot: boolean;
 
   @Prop({ required: true, type: Boolean })
   isCheckmate: boolean;
@@ -54,3 +57,4 @@ export const GameSnapshotSchema = SchemaFactory.createForClass(GameSnapshot);
 GameSnapshotSchema.index({ white: 1 });
 GameSnapshotSchema.index({ black: 1 });
 GameSnapshotSchema.index({ finishedAt: -1 });
+GameSnapshotSchema.index({ isBot: 1, finishedAt: -1 });

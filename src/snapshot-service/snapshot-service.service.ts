@@ -49,6 +49,7 @@ export class SnapshotServiceService {
       fen: room.fen,
       white: room.white.userId,
       black: room.black.userId,
+      isBot: false,
       isDraw: room.isDraw,
       winnerId: room.winnerId,
       allMoves: room.allMoves,
@@ -64,12 +65,22 @@ export class SnapshotServiceService {
   }
 
   private async storePvEGameResult(room: IPvEGameRoom) {
-    console.log(room);
-    /**
-     * @Comming_Soon
-     * But i think this is a bad solution
-     * because we will store snapshotes
-     * of games separate
-     */
+    const createdGameSnapshot = await this.gameSnapshotRepository.create({
+      fen: room.fen,
+      white: room.white.userId,
+      black: 'bot',
+      isBot: true,
+      isDraw: room.isDraw ?? false,
+      winnerId: room.winnerId,
+      allMoves: room.allMoves,
+      winnerColor: room.winner,
+      finishedAt: room.finishedAt,
+      gameCreatedAt: room.createdAt,
+      isCheckmate: room.isCheckmate ?? false,
+    });
+
+    await createdGameSnapshot.save();
+
+    return createdGameSnapshot;
   }
 }

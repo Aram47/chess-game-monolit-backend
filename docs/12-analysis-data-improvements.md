@@ -57,12 +57,13 @@ What this already enables:
 Why:
 - Prevent silent field drops or inconsistent persistence.
 
-### 2) PvE snapshot persistence gap
+### 2) PvE snapshot persistence
 
-`storePvEGameResult(...)` is currently a stub, so PvE games are not fully persisted for analysis history.
+`storePvEGameResult(...)` is implemented and now persists PvE game snapshots.
 
-Why:
-- Without durable PvE snapshots, analysis/replay coverage is incomplete.
+Current behavior:
+- PvE snapshots are stored in `GameSnapshot`.
+- `isBot: true` is set for easy UX filtering in history.
 
 ### 3) Cross-DB integrity is logical only
 
@@ -87,9 +88,9 @@ Why:
 1. **Fix `ProblemSnapshot` schema definitions**
    - Use proper decorators and explicit field types for all saved fields.
 
-2. **Implement PvE game snapshot persistence**
-   - Make `storePvEGameResult(...)` save durable snapshot data.
-   - Keep schema compatible with existing frontend analysis flow.
+2. **Keep PvE snapshot structure stable**
+   - Maintain `isBot: true` and stable `allMoves/fen/outcome` fields for frontend analysis.
+   - Add tests for draw/checkmate bot games.
 
 3. **Standardize move contract**
    - Keep `MoveType` as canonical move shape (`from`, `to`, `promotion?`) across API, service, Redis, and Mongo snapshots.
@@ -150,7 +151,7 @@ Why:
 ## Quick Checklist Before Building Analytics Features
 
 - [ ] `ProblemSnapshot` schema is fully explicit and tested
-- [ ] PvE snapshot persistence implemented
+- [x] PvE snapshot persistence implemented
 - [ ] `MoveType` consistently used across layers
 - [ ] Snapshot indexes added for real query paths
 - [ ] Draw/winner semantics finalized

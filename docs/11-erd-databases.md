@@ -95,10 +95,11 @@ erDiagram
     string fen
     string white "userId"
     string black "userId"
+    boolean isBot
     number gameCreatedAt
     number finishedAt
     string winnerColor
-    string winnerId "userId"
+    string winnerId "userId nullable on draw"
     boolean isCheckmate
     boolean isDraw
     MoveType[] allMoves
@@ -121,10 +122,10 @@ erDiagram
 
 ### MongoDB Notes
 
-- `GameSnapshot` has indexes on `white`, `black`, `finishedAt`.
+- `GameSnapshot` has indexes on `white`, `black`, `finishedAt`, and `isBot+finishedAt`.
 - `ProblemSnapshot` stores references as plain strings (`userId`, `problemId`), not Mongo ObjectId refs.
 - PvP snapshot persistence is implemented.
-- PvE snapshot persistence is currently not implemented in service logic (`storePvEGameResult` is stub).
+- PvE snapshot persistence is implemented and flagged with `isBot: true`.
 
 ---
 

@@ -47,7 +47,7 @@ async function bootstrap() {
     });
 
     logger.log(
-      `Swagger available at http://10.79.93.100:${process.env.PORT ?? 3000}/swagger`,
+      `Swagger available at http://10.19.223.110:${process.env.PORT ?? 3000}/swagger`,
     );
   }
   await app.listen(process.env.PORT ?? 3000, () => {
