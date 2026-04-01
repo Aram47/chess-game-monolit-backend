@@ -221,15 +221,16 @@ Any controller decorated with `@UseGuards(AuthGuard)` (and optionally `RolesGuar
 1. **Auth**
    - `@UseGuards(AuthGuard)`, `@UserDecorator()` for user id.
 2. **Service**
-   - `GameServiceService.startGameWithBot(user)`:
+   - `GameServiceService.startGameWithBot(dto, user)`:
      - Generates `roomId = uuid()`.
      - Creates `Chess` instance in starting position.
      - Builds `IPvEGameRoom`:
-       - `roomId`, `fen`, `turn = 'w'`, `white.userId`, `black = 'bot'`, `level = 'medium'`, `allMoves = []`, `createdAt`, `version = 1`.
+       - `roomId`, `fen`, `turn = 'w'`, color assignment from `dto.color` (`white` or `black`), `level = dto.level`, `allMoves = []`, `createdAt`, `version = 1`.
+     - If user selects black, engine plays opening white move immediately; room `fen`/`turn` are updated before storing.
      - Writes it to Redis:
        - Key: `pve:room:{roomId}`
        - TTL: `60 * 60` seconds.
-   - Returns `{ roomId, fen, color: 'white' }`.
+   - Returns `{ roomId, fen, color, level, botMove? }`.
 
 ### 4.2. Make Move vs Bot – POST `/game/move/:id`
 
@@ -238,9 +239,9 @@ Any controller decorated with `@UseGuards(AuthGuard)` (and optionally `RolesGuar
 2. **Service**
    - `GameServiceService.makeMoveInTheGameWithBot(roomId, move, user)`:
      1. Loads room JSON from `pve:room:{roomId}`; `NotFoundException` if not present.
-     2. Confirms `room.white.userId === user.sub` else `BadRequestException('Not your game')`.
+    2. Confirms user is either room white or room black player.
      3. If `room.isGameOver` true → `BadRequestException('Game already finished')`.
-     4. Creates `Chess` from `room.fen`.
+    4. Creates `Chess` from `room.fen` and enforces user turn.
      5. Applies **user move**:
         - `chess.move(move)`; if falsy → `BadRequestException('Invalid move')`.
         - Appends user move to `room.allMoves`.
@@ -267,7 +268,7 @@ Any controller decorated with `@UseGuards(AuthGuard)` (and optionally `RolesGuar
   - `winnerId` is user id or `'bot'`.
 - Else marks game as draw.
 - Calls `snapshotService.storeGameResultSnapshot(room)`:
-  - Internally this chooses PvE path (`storePvEGameResult`) which is currently only logging → **PvE snapshots are not yet persisted**.
+  - Internally this chooses PvE path (`storePvEGameResult`) and persists a `GameSnapshot` document.
 - Deletes `pve:room:{roomId}` from Redis.
 - Returns final `room` object.
 

@@ -21,6 +21,7 @@ import {
   ProblemMoveDto,
   ProblemCategory,
   CreateProblemDto,
+  StartBotGameDto,
   UserDecoratorDto,
   ProblemSnapshotDto,
   GetProblemsQueryDto,
@@ -248,7 +249,7 @@ export class GameServiceService {
     return category;
   }
 
-  async startGameWithBot(user: UserDecoratorDto) {
+  async startGameWithBot(dto: StartBotGameDto, user: UserDecoratorDto) {
     /**
      * @Important
      * I think we can have issue if user will send many requests to this api
@@ -264,17 +265,30 @@ export class GameServiceService {
 
     const chess = new Chess();
 
+    const userColor = dto.color;
     const room: IPvEGameRoom = {
       roomId,
       fen: chess.fen(),
       turn: 'w',
-      white: { userId: String(user.sub) },
-      black: 'bot',
-      level: 'medium',
+      white: userColor === 'white' ? { userId: String(user.sub) } : 'bot',
+      black: userColor === 'black' ? { userId: String(user.sub) } : 'bot',
+      level: dto.level,
       allMoves: [],
       createdAt: Date.now(),
       version: 1,
     };
+
+    // If user chooses black, bot (white) should make the opening move.
+    let openingBotMove: MoveType | undefined;
+    if (userColor === 'black') {
+      const bestMove = await this.gameEngineService.getBestMove(chess.fen(), room.level);
+      chess.move(bestMove);
+      room.allMoves.push(bestMove);
+      room.fen = chess.fen();
+      room.turn = chess.turn();
+      room.version++;
+      openingBotMove = bestMove;
+    }
 
     await this.redisClient.set(
       `pve:room:${roomId}`,
@@ -286,7 +300,9 @@ export class GameServiceService {
     return {
       roomId,
       fen: room.fen,
-      color: 'white',
+      color: userColor,
+      level: room.level,
+      botMove: openingBotMove,
     };
   }
 
@@ -299,7 +315,13 @@ export class GameServiceService {
     if (!raw) throw new NotFoundException('Room not found');
     const room: IPvEGameRoom = JSON.parse(raw);
 
-    if (room.white.userId !== String(user.sub)) {
+    const userId = String(user.sub);
+    const isPlayerWhite =
+      typeof room.white !== 'string' && room.white.userId === userId;
+    const isPlayerBlack =
+      typeof room.black !== 'string' && room.black.userId === userId;
+
+    if (!isPlayerWhite && !isPlayerBlack) {
       throw new BadRequestException('Not your game');
     }
 
@@ -307,7 +329,13 @@ export class GameServiceService {
       throw new BadRequestException('Game already finished');
     }
 
+    const userColor = isPlayerWhite ? 'white' : 'black';
+    const userTurnSymbol = userColor === 'white' ? 'w' : 'b';
     const chess = new Chess(room.fen);
+
+    if (room.turn !== userTurnSymbol) {
+      throw new BadRequestException("It's not your turn");
+    }
 
     // User move
     const userMove = chess.move(move);
@@ -362,7 +390,14 @@ export class GameServiceService {
     if (chess.isCheckmate()) {
       room.isCheckmate = true;
       room.winner = chess.turn() === 'w' ? 'black' : 'white';
-      room.winnerId = room.winner === 'white' ? room.white.userId : 'bot';
+      room.winnerId =
+        room.winner === 'white'
+          ? typeof room.white === 'string'
+            ? room.white
+            : room.white.userId
+          : typeof room.black === 'string'
+            ? room.black
+            : room.black.userId;
     } else {
       room.isDraw = true;
       room.winner = 'draw';

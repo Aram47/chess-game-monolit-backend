@@ -316,19 +316,30 @@ Starts a new game with bot.
 
 **Authentication:** Required (AuthGuard)
 
+**Request Body:**
+```typescript
+{
+  color: 'white' | 'black';
+  level: 'easy' | 'medium' | 'hard';
+}
+```
+
 **Response:**
 ```typescript
 {
   roomId: string;
   fen: string;
-  color: 'white';
+  color: 'white' | 'black';
+  level: 'easy' | 'medium' | 'hard';
+  botMove?: MoveType; // present when user starts as black
 }
 ```
 
 **Flow:**
 1. Creates game room
-2. Initializes chess position
-3. Returns room information
+2. Initializes chess position with selected user color and bot level
+3. If user selected black, bot (white) plays opening move immediately
+4. Persists room in Redis and returns room information
 
 ---
 
@@ -359,10 +370,10 @@ Makes a move in a PvE game.
 ```
 
 **Flow:**
-1. Validates room and ownership
-2. Applies user move
-3. Generates bot move
-4. Applies bot move
+1. Validates room and user ownership (user can be either white or black)
+2. Validates that it is currently the user's turn
+3. Applies user move
+4. If game is not over, generates and applies bot move
 5. Returns updated game state
 
 ---
@@ -450,8 +461,8 @@ Handles game completion logic:
   roomId: string;
   fen: string;
   turn: 'w' | 'b';
-  white: { userId: string };
-  black: 'bot';
+  white: { userId: string } | 'bot';
+  black: { userId: string } | 'bot';
   level: 'easy' | 'medium' | 'hard';
   allMoves: MoveType[];
   createdAt: number;

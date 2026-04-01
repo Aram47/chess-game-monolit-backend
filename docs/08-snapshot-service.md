@@ -178,7 +178,7 @@ Stores a Player vs Bot game snapshot.
 
 **Stored Data Highlights:**
 - `isBot: true`
-- `black: 'bot'`
+- bot can be either side (`white` or `black`) based on room state
 - `allMoves`, `fen`, result flags, timestamps
 
 ---

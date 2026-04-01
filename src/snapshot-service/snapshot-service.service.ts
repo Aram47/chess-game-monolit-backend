@@ -44,6 +44,47 @@ export class SnapshotServiceService {
       : await this.storePvPGameResult(room as IPvPGameRoom);
   }
 
+  async getUserGameHistory(userId: string, page = 1, limit = 20) {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    const skip = (safePage - 1) * safeLimit;
+
+    const filter = {
+      $or: [{ white: userId }, { black: userId }],
+    };
+
+    const [games, total] = await Promise.all([
+      this.gameSnapshotRepository
+        .find(filter)
+        .sort({ finishedAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean()
+        .exec(),
+      this.gameSnapshotRepository.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      data: games,
+      meta: {
+        total,
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
+      },
+    };
+  }
+
+  async getUserGameById(userId: string, gameId: string) {
+    return this.gameSnapshotRepository
+      .findOne({
+        _id: gameId,
+        $or: [{ white: userId }, { black: userId }],
+      })
+      .lean()
+      .exec();
+  }
+
   private async storePvPGameResult(room: IPvPGameRoom) {
     const createGameSnapshot = await this.gameSnapshotRepository.create({
       fen: room.fen,
@@ -65,10 +106,15 @@ export class SnapshotServiceService {
   }
 
   private async storePvEGameResult(room: IPvEGameRoom) {
+    const whiteValue =
+      typeof room.white === 'string' ? room.white : room.white.userId;
+    const blackValue =
+      typeof room.black === 'string' ? room.black : room.black.userId;
+
     const createdGameSnapshot = await this.gameSnapshotRepository.create({
       fen: room.fen,
-      white: room.white.userId,
-      black: 'bot',
+      white: whiteValue,
+      black: blackValue,
       isBot: true,
       isDraw: room.isDraw ?? false,
       winnerId: room.winnerId,

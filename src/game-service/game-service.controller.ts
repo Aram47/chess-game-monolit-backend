@@ -5,6 +5,7 @@ import {
   Pagination,
   MergePayload,
   ChessProblem,
+  StartBotGameDto,
   UserDecorator,
   PaginationDto,
   ProblemMoveDto,
@@ -121,9 +122,13 @@ export class GameServiceController {
     return await this.gameService.makeMove(id, userMetaData.sub, dto);
   }
 
+  @ApiBody({ type: StartBotGameDto })
   @Post('/start')
-  async startGameWithBot(@UserDecorator() userMetaData: UserDecoratorDto) {
-    return await this.gameService.startGameWithBot(userMetaData);
+  async startGameWithBot(
+    @Body() dto: StartBotGameDto,
+    @UserDecorator() userMetaData: UserDecoratorDto,
+  ) {
+    return await this.gameService.startGameWithBot(dto, userMetaData);
   }
 
   @Post('/move/:id')
