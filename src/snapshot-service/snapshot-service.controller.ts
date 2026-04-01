@@ -1,12 +1,17 @@
 import {
   Get,
   Param,
-  Query,
   UseGuards,
   Controller,
   NotFoundException,
 } from '@nestjs/common';
-import { AuthGuard, UserDecorator, UserDecoratorDto } from '../../common';
+import {
+  AuthGuard,
+  Pagination,
+  PaginationDto,
+  UserDecorator,
+  UserDecoratorDto,
+} from '../../common';
 import { SnapshotServiceService } from './snapshot-service.service';
 
 @UseGuards(AuthGuard)
@@ -19,15 +24,12 @@ export class SnapshotServiceController {
   @Get('/games/my')
   async getMyGames(
     @UserDecorator() userMetaData: UserDecoratorDto,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Pagination() pagination: PaginationDto,
   ) {
-    const parsedPage = Number(page) || 1;
-    const parsedLimit = Number(limit) || 20;
     return this.snapshotServiceService.getUserGameHistory(
       String(userMetaData.sub),
-      parsedPage,
-      parsedLimit,
+      pagination.page,
+      pagination.limit,
     );
   }
 

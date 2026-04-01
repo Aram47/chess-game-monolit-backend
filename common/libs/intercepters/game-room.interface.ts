@@ -37,5 +37,7 @@ export interface IPvPGameRoom extends IGameRoom {
 }
 
 export const isBotRoom = (room: IPvEGameRoom | IPvPGameRoom): boolean => {
-  return typeof room.black === 'string' ? true : false;
+  const isWhiteBot = typeof room.white === 'string' && room.white === 'bot';
+  const isBlackBot = typeof room.black === 'string' && room.black === 'bot';
+  return isWhiteBot || isBlackBot;
 };

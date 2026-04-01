@@ -76,6 +76,15 @@ The `storeGameResultSnapshot()` method stores completed game data:
 
 ## API Methods
 
+### HTTP Endpoints
+
+The snapshot controller now exposes authenticated history endpoints:
+
+- `GET /snapshot-service/games/my` - paginated list of current user's games
+- `GET /snapshot-service/games/my/:id` - single game snapshot by id (must belong to current user)
+
+Both endpoints require `AuthGuard` and identify the user from JWT cookie payload.
+
 ### `storeProblemSnapshot(snapshot: ProblemSnapshotDto)`
 
 Stores a problem-solving snapshot.
