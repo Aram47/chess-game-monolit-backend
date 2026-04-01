@@ -75,6 +75,10 @@ This directory contains comprehensive documentation for all modules in the Chess
    - Prioritized improvements (P0/P1/P2)
    - Checklist for analytics-ready backend data
 
+13. **[Game Analysis API](./13-game-analysis-api.md)** - MultiPV position analysis HTTP contract
+   - `POST /game/position/analyze` (auth, defaults, response shape)
+   - Links to engine MultiPV behavior and DTOs
+
 ---
 
 ## Architecture Overview

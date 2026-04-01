@@ -17,6 +17,7 @@ import { ApiGatewayModule } from './api-gateway/api-gateway.module';
 import { GameServiceModule } from './game-service/game-service.module';
 import { SocketServiceModule } from './socket-service/socket-service.module';
 import { NotificationsModule } from './notification-service/notification.module';
+import { GameAnalysisModule } from './game-analysis/game-analysis.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { NotificationsModule } from './notification-service/notification.module'
     GameServiceModule,
     NotificationsModule,
     SocketServiceModule,
+    GameAnalysisModule,
   ],
   controllers: [],
   providers: [],

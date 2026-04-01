@@ -213,6 +213,7 @@ Any controller decorated with `@UseGuards(AuthGuard)` (and optionally `RolesGuar
 **Endpoints:** `POST /game/start`, `POST /game/move/:id`  
 **Service:** `GameServiceService`  
 **Engine:** `GameEngineService` (Stockfish)  
+**Also under `/game`:** `POST /game/position/analyze` is implemented by `GameAnalysisController` / `GameAnalysisService` (stateless MultiPV analysis; see [Game Analysis API](./13-game-analysis-api.md)).  
 **State store:** Redis `pve:room:{roomId}`  
 **Snapshots:** `GameSnapshot` (via `SnapshotServiceService.storeGameResultSnapshot`)
 
@@ -256,7 +257,16 @@ Any controller decorated with `@UseGuards(AuthGuard)` (and optionally `RolesGuar
         - Writes updated room back to Redis with TTL 1 hour.
         - Returns `{ fen, userMove, botMove: bestMove }`.
 
-### 4.3. Finish PvE Game Internals
+### 4.3. Analyze Position – POST `/game/position/analyze`
+
+1. **Auth** — `@UseGuards(AuthGuard)` on `GameAnalysisController`.
+2. **Body** — `AnalyzePositionDto`: `fen` (required); optional `recommendedMovesCount` (default 3, max 5); optional `depth` (default 12, max 30).
+3. **Service** — `GameAnalysisService.analyzePosition`:
+   - Validates FEN with `chess.js`; terminal positions return empty `lines` and `bestMove: null`.
+   - Calls `gameEngineService.analyzeMultiPv({ fen, multiPv, depth })`.
+4. **Response** — `fen`, `depth`, `depthReached`, `bestMove` (same shape as PvE `botMove` when present), `lines[]` with per-line `move`, `evaluation`, `pvUci`.
+
+### 4.4. Finish PvE Game Internals
 
 **Method:** `finishPvEGame(room: IPvEGameRoom, chess: Chess)`
 

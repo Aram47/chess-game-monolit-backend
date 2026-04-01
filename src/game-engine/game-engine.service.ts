@@ -1,6 +1,15 @@
 import { spawn } from 'child_process';
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { MoveType, StockfishEngineWrapper } from '../../common';
+import {
+  MoveType,
+  StockfishEngineWrapper,
+  MultiPvAnalysisEngineResult,
+  AnalysisEngineLine,
+} from '../../common';
+import {
+  parseStockfishInfoLine,
+  parsedLineToEngineFields,
+} from './stockfish-multipv.parser';
 
 @Injectable()
 export class GameEngineService implements OnModuleInit {
@@ -112,6 +121,150 @@ export class GameEngineService implements OnModuleInit {
         engine.process.stdout.off('data', onData);
         engine.busy = false;
         reject(err);
+      }
+    });
+  }
+
+  /**
+   * MultiPV analysis at fixed depth. Resets MultiPV to 1 before releasing the engine.
+   */
+  async analyzeMultiPv(params: {
+    fen: string;
+    multiPv: number;
+    depth: number;
+  }): Promise<MultiPvAnalysisEngineResult> {
+    const { fen, multiPv, depth } = params;
+    const engine = this.getEngine();
+    const timeoutMs = 15_000;
+
+    return new Promise<MultiPvAnalysisEngineResult>((resolve, reject) => {
+      let done = false;
+      let buffer = '';
+      type Phase = 'await_first_ready' | 'searching' | 'await_reset_ready';
+      let phase: Phase = 'await_first_ready';
+      const byMultiPv = new Map<number, AnalysisEngineLine>();
+      let depthReached = 0;
+
+      const finishError = (err: Error) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timeoutId);
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+        reject(err);
+      };
+
+      const finishSuccess = (result: MultiPvAnalysisEngineResult) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timeoutId);
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+        resolve(result);
+      };
+
+      const timeoutId = setTimeout(() => {
+        if (done) return;
+        done = true;
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+        const index = this.stokfishEngines.indexOf(engine);
+        if (index !== -1) this.restartEngine(index);
+        reject(new Error('Stockfish analysis timeout'));
+      }, timeoutMs);
+
+      const flushLines = () => {
+        const parts = buffer.split('\n');
+        buffer = parts.pop() ?? '';
+        return parts;
+      };
+
+      const onData = (data: Buffer) => {
+        if (done) return;
+        buffer += data.toString();
+
+        const lines = flushLines();
+
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line) continue;
+
+          if (phase === 'await_first_ready') {
+            if (line === 'readyok') {
+              phase = 'searching';
+              try {
+                engine.process.stdin.write(`position fen ${fen}\n`);
+                engine.process.stdin.write(`go depth ${depth}\n`);
+              } catch (e) {
+                finishError(
+                  e instanceof Error ? e : new Error(String(e)),
+                );
+              }
+            }
+            continue;
+          }
+
+          if (phase === 'searching') {
+            if (line.startsWith('info ')) {
+              const parsed = parseStockfishInfoLine(line);
+              if (parsed) {
+                const fields = parsedLineToEngineFields(parsed);
+                if (fields) {
+                  byMultiPv.set(fields.multipv, {
+                    multipv: fields.multipv,
+                    depth: fields.depth,
+                    evaluation: fields.evaluation,
+                    move: fields.move,
+                    pvUci: fields.pvUci,
+                  });
+                  depthReached = Math.max(depthReached, fields.depth);
+                }
+              }
+            } else if (line.startsWith('bestmove ')) {
+              phase = 'await_reset_ready';
+              buffer = '';
+              try {
+                engine.process.stdin.write(
+                  'setoption name MultiPV value 1\n',
+                );
+                engine.process.stdin.write('isready\n');
+              } catch (e) {
+                finishError(
+                  e instanceof Error ? e : new Error(String(e)),
+                );
+              }
+            }
+            continue;
+          }
+
+          if (phase === 'await_reset_ready' && line === 'readyok') {
+            const ordered: AnalysisEngineLine[] = [];
+            for (let m = 1; m <= multiPv; m++) {
+              const row = byMultiPv.get(m);
+              if (row) ordered.push(row);
+            }
+            finishSuccess({
+              depthRequested: depth,
+              depthReached,
+              lines: ordered,
+            });
+          }
+        }
+      };
+
+      engine.process.stdout.on('data', onData);
+
+      try {
+        engine.process.stdin.write('ucinewgame\n');
+        engine.process.stdin.write(
+          `setoption name MultiPV value ${multiPv}\n`,
+        );
+        engine.process.stdin.write('isready\n');
+      } catch (err) {
+        clearTimeout(timeoutId);
+        engine.process.stdout.off('data', onData);
+        engine.busy = false;
+        reject(err instanceof Error ? err : new Error(String(err)));
       }
     });
   }

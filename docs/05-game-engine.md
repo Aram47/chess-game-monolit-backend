@@ -180,6 +180,49 @@ const move = await gameEngineService.getBestMove(
 // Returns: { from: 'e2', to: 'e4' }
 ```
 
+### `analyzeMultiPv({ fen, multiPv, depth })`
+
+Runs a **fixed-depth** MultiPV search for position analysis (used by the Game Analysis HTTP API).
+
+**Parameters:**
+- `fen`: FEN string
+- `multiPv`: number of principal variations (1–5 in the API layer)
+- `depth`: Stockfish `go depth` value
+
+**Returns:**
+```typescript
+Promise<{
+  depthRequested: number;
+  depthReached: number;
+  lines: Array<{
+    multipv: number;
+    depth: number;
+    evaluation: { kind: 'cp' | 'mate'; value: number };
+    move: MoveType;
+    pvUci: string[];
+  }>;
+}>
+```
+
+**UCI sequence:**
+1. `ucinewgame`
+2. `setoption name MultiPV value N`
+3. `isready` → wait for `readyok`
+4. `position fen {fen}`
+5. `go depth {depth}`
+6. Parse `info` lines (latest per `multipv` before `bestmove`)
+7. On `bestmove`: `setoption name MultiPV value 1`, `isready` → wait for `readyok`, then release engine
+
+**Important:** MultiPV is reset to **1** before the engine returns to the pool so bot `getBestMove()` behavior is unchanged.
+
+**Timeout:** 15 seconds (longer than bot `getBestMove`); on timeout the engine process is restarted like the bot path.
+
+**Score semantics:** Centipawn and mate scores follow Stockfish: **side to move** perspective.
+
+**Throws:**
+- `Error('Stockfish analysis timeout')`
+- `Error('All Stockfish engines are busy')`
+
 ---
 
 ## Internal Methods
@@ -215,13 +258,14 @@ The service communicates with Stockfish using the Universal Chess Interface (UCI
 - `uci`: Enables UCI mode
 - `isready`: Checks engine readiness
 - `ucinewgame`: Starts new game calculation
+- `setoption name MultiPV value N`: MultiPV analysis (analysis path only; reset to 1 after)
 - `position fen {fen}`: Sets board position
-- `go movetime {ms}`: Calculates best move with time limit
+- `go movetime {ms}`: Bot move calculation time limit
+- `go depth {d}`: Fixed-depth analysis (analysis path)
 
 **Response Parsing:**
-- Parses `bestmove` output from Stockfish
-- Extracts move in UCI format (e.g., "e2e4")
-- Converts to internal `MoveType` format
+- **Bot path:** Parses `bestmove` from Stockfish; converts UCI to `MoveType`
+- **Analysis path:** Parses `info` lines for `multipv`, `score cp|mate`, and `pv`; keeps the last update per MultiPV index until `bestmove`
 
 ---
 
@@ -261,6 +305,7 @@ The service communicates with Stockfish using the Universal Chess Interface (UCI
 ## Integration Points
 
 - **GameServiceService**: Uses `getBestMove()` for bot moves in PvE games
+- **GameAnalysisService**: Uses `analyzeMultiPv()` for `POST /game/position/analyze` (see [Game Analysis API](./13-game-analysis-api.md))
 - **Stockfish Binary**: External dependency, must be installed
 - **Node.js child_process**: For process management
 

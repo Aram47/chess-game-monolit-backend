@@ -1,26 +1,11 @@
 import { Type } from 'class-transformer';
-import { MoveType } from '../../libs/types';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, ValidateNested } from 'class-validator';
-
-class MovePayloadDto implements MoveType {
-  @ApiProperty({ example: 'e2' })
-  @IsString()
-  from: string;
-
-  @ApiProperty({ example: 'e4' })
-  @IsString()
-  to: string;
-
-  @ApiProperty({ example: 'q', required: false })
-  @IsOptional()
-  @IsString()
-  promotion?: string;
-}
+import { ValidateNested } from 'class-validator';
+import { MoveTypeDto } from '../move-type.dto';
 
 export class ProblemMoveDto {
-  @ApiProperty({ type: MovePayloadDto })
+  @ApiProperty({ type: MoveTypeDto })
   @ValidateNested()
-  @Type(() => MovePayloadDto)
-  move: MovePayloadDto;
+  @Type(() => MoveTypeDto)
+  move: MoveTypeDto;
 }
