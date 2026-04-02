@@ -4,3 +4,8 @@ export * from './user.update.dto';
 export * from './user-decorator.dto';
 export * from './user.related-data.dto';
 export * from './user.update.related-data.dto';
+export * from './change-password.dto';
+export * from './update-profile.dto';
+export * from './send-friend-request.dto';
+export * from './user-profile.response.dto';
+export * from './friendship.response.dto';

@@ -33,3 +33,5 @@ export type ProblemSnapshotDocument = ProblemSnapshot & Document;
 
 export const ProblemSnapshotSchema =
   SchemaFactory.createForClass(ProblemSnapshot);
+
+ProblemSnapshotSchema.index({ userId: 1 });

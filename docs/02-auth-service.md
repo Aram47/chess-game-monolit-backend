@@ -37,9 +37,10 @@ The module consists of:
 The `login()` method performs the following steps:
 
 1. **Credential Retrieval**: Fetches user by login (email or username) including password hash
-2. **Password Verification**: Compares provided password with stored hash using bcrypt
-3. **Token Generation**: Creates JWT access and refresh tokens with user payload
-4. **Response Preparation**: Returns tokens and sanitized user data (without password)
+2. **Account type check**: Only **`authProvider === local`** users with a **non-null password** may use email/username + password login. **Google-only** accounts (`authProvider === google`, `password` null) receive `401 Unauthorized` with a message to use Google sign-in (same endpoint; avoids training password checks for those rows).
+3. **Password Verification**: Compares provided password with stored hash using bcrypt
+4. **Token Generation**: Creates JWT access and refresh tokens with user payload
+5. **Response Preparation**: Returns tokens and sanitized user data (without password)
 
 **Token Payload Structure:**
 ```typescript
@@ -107,7 +108,7 @@ Authenticates a user and generates tokens.
 ```
 
 **Throws:**
-- `UnauthorizedException`: If credentials are invalid
+- `UnauthorizedException`: If credentials are invalid, user not found, or the account is Google-only (password not used for login)
 
 ---
 

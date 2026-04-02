@@ -1,28 +1,10 @@
-import {
-  User,
-  LoginDto,
-  Pagination,
-  CreateUserDto,
-  PaginationDto,
-  UpdateUserDto,
-} from '../../common';
-import {
-  Req,
-  Res,
-  Get,
-  Body,
-  Post,
-  Patch,
-  Param,
-  Delete,
-  Controller,
-} from '@nestjs/common';
+import { User, LoginDto, CreateUserDto } from '../../common';
+import { Req, Res, Body, Post, Controller } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ApiGatewayService } from './api-gateway.service';
 import {
   ApiBody,
   ApiTags,
-  ApiParam,
   ApiResponse,
   ApiOperation,
 } from '@nestjs/swagger';
@@ -72,58 +54,6 @@ export class ApiGatewayController {
   @Post('/register')
   async register(@Body() dto: CreateUserDto) {
     return await this.apiGatewayService.register(dto);
-  }
-
-  @ApiOperation({ summary: 'Get user by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User found',
-    type: User,
-  })
-  @Get(':id')
-  async getUserById(@Param('id') id: number) {
-    return await this.apiGatewayService.getUserById(id);
-  }
-
-  @ApiOperation({ summary: 'Get paginated list of users' })
-  @ApiParam({
-    type: PaginationDto,
-    name: 'page',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of users',
-    type: [User],
-  })
-  @Get('')
-  async getUsers(@Pagination() dto: PaginationDto) {
-    return await this.apiGatewayService.getUsers(dto);
-  }
-
-  @ApiOperation({ summary: 'Update user by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiBody({ type: User })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully updated',
-    type: User,
-  })
-  @Patch(':id')
-  async updateUserById(@Param('id') id: number, @Body() dto: UpdateUserDto) {
-    return await this.apiGatewayService.updateUserById(id, dto);
-  }
-
-  @ApiOperation({ summary: 'Delete user by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully deleted',
-    type: User,
-  })
-  @Delete(':id')
-  async deleteUserById(@Param('id') id: number) {
-    return await this.apiGatewayService.deleteUserById(id);
   }
 
   @ApiOperation({ summary: 'Refresh access and refresh tokens' })

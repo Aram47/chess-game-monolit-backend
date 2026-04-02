@@ -36,12 +36,11 @@ export class OauthService {
       const baseUsername = this.buildBaseUsername(profile, email);
       const username = await this.generateUniqueUsername(baseUsername);
 
-      await this.userService.createUser({
+      await this.userService.createOAuthUser({
         email,
         username,
         name: profile.firstName || 'Google',
         surname: profile.lastName || 'User',
-        password: randomBytes(24).toString('hex'),
       });
 
       user = await this.userRepository

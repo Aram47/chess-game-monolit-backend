@@ -8,6 +8,7 @@ import {
   ENV_VARIABLES,
   ProblemCategory,
   UserRelatedData,
+  UserFriend,
 } from '../common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
@@ -41,6 +42,7 @@ import { GameAnalysisModule } from './game-analysis/game-analysis.module';
           ProblemTheme,
           ProblemCategory,
           UserRelatedData,
+          UserFriend,
         ],
         synchronize: true, // for development
       }),

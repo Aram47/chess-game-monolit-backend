@@ -16,9 +16,9 @@ The Snapshot Service module:
 ## Architecture
 
 The module consists of:
-- **SnapshotServiceService**: Core snapshot storage logic
-- **SnapshotServiceController**: HTTP controller (currently empty, for future use)
-- **SnapshotServiceModule**: Module configuration with MongoDB
+- **SnapshotServiceService**: Core snapshot storage logic, history queries, and profile aggregates
+- **SnapshotServiceController**: Authenticated game history HTTP routes
+- **SnapshotServiceModule**: Module configuration with MongoDB (exported for `UserModule` profile stats)
 
 ### Dependencies
 
@@ -84,6 +84,12 @@ The snapshot controller now exposes authenticated history endpoints:
 - `GET /snapshot-service/games/my/:id` - single game snapshot by id (must belong to current user)
 
 Both endpoints require `AuthGuard` and identify the user from JWT cookie payload.
+
+### Profile aggregates (service-only, used by `UserProfileService`)
+
+- `countSolvedProblems(userId: string)` — `ProblemSnapshot` count for that user id string.
+- `getUserGameStats(userId: string)` — single aggregation over `GameSnapshot` for games where the user is `white` or `black`: `played`, `wins`, `losses`, `draws`.
+- `getRecentGames(userId: string, limit?)` — latest finished games for the user (default limit 10, max 50).
 
 ### `storeProblemSnapshot(snapshot: ProblemSnapshotDto)`
 

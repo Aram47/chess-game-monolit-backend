@@ -1,4 +1,9 @@
-import { User, UserRelatedData, Role, Plan } from '../../../common';
+import {
+  User,
+  Role,
+  Plan,
+  AuthProviderEnum,
+} from '../../../common';
 
 export class UserFactory {
   static build(overrides: Partial<User> = {}): User {
@@ -9,6 +14,7 @@ export class UserFactory {
       username: 'johndoe',
       email: 'john.doe@example.com',
       password: '$2b$10$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV',
+      authProvider: AuthProviderEnum.LOCAL,
       createdAt: new Date('2025-01-01T00:00:00Z'),
       updatedAt: new Date('2025-01-01T00:00:00Z'),
       userRelatedData: {
@@ -17,6 +23,7 @@ export class UserFactory {
         plan: Plan.FREE,
         xp: 0,
         level: 0,
+        elo: 800,
         createdAt: new Date('2025-01-01T00:00:00Z'),
         updatedAt: new Date('2025-01-01T00:00:00Z'),
         user: null as any,

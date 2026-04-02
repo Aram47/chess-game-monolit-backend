@@ -6,8 +6,9 @@ import {
   UpdateDateColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRelatedData } from './user.related-data.entity';
+import { AuthProviderEnum } from '../../enums';
 
 @Entity('Users')
 export class User {
@@ -27,16 +28,20 @@ export class User {
   @Column({ type: 'varchar', length: 20, unique: true })
   username: string;
 
-  @ApiProperty({
-    example: 'strongPassword123',
-    description: 'Password of the user',
+  @ApiPropertyOptional({
+    description:
+      'Bcrypt hash for local accounts; null for OAuth-only (e.g. Google) sign-up',
   })
-  @Column({ type: 'varchar', length: 100, select: false })
-  password: string;
+  @Column({ type: 'varchar', length: 100, select: false, nullable: true })
+  password: string | null;
 
   @ApiProperty({ example: 'a@gmail.com', description: 'Email of the user' })
   @Column({ type: 'varchar', unique: true })
   email: string;
+
+  @ApiProperty({ enum: AuthProviderEnum, default: AuthProviderEnum.LOCAL })
+  @Column({ type: 'varchar', length: 20, default: AuthProviderEnum.LOCAL })
+  authProvider: AuthProviderEnum;
 
   @OneToOne(() => UserRelatedData, (related) => related.user, {
     cascade: true,

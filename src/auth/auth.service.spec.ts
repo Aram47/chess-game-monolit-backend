@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
-import { JwtUtils } from '../../common';
+import { JwtUtils, AuthProviderEnum } from '../../common';
 import { ENV_VARIABLES } from '../../common';
 import { UserFactory } from '../../test/utils/factories/user.factory';
 import { DtoFactory } from '../../test/utils/factories/dto.factory';
@@ -145,6 +145,40 @@ describe('AuthService', () => {
       );
       expect(bcryptCompareSpy).not.toHaveBeenCalled();
       expect(jwtUtils.generateToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException when account is Google-only', async () => {
+      const loginDto = DtoFactory.buildLoginDto();
+      const user = UserFactory.build({
+        authProvider: AuthProviderEnum.GOOGLE,
+        password: null,
+      });
+
+      userService.getUserByLoginWithPassword.mockResolvedValue(user);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'This account uses Google sign-in',
+      );
+      expect(bcryptCompareSpy).not.toHaveBeenCalled();
+      expect(jwtUtils.generateToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException when local account has no password', async () => {
+      const loginDto = DtoFactory.buildLoginDto();
+      const user = UserFactory.build({
+        authProvider: AuthProviderEnum.LOCAL,
+        password: null,
+      });
+
+      userService.getUserByLoginWithPassword.mockResolvedValue(user);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(bcryptCompareSpy).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException when password is incorrect', async () => {

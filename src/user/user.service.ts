@@ -5,15 +5,20 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   User,
+  AuthProviderEnum,
   PaginationDto,
   CreateUserDto,
   UpdateUserDto,
+  UpdateProfileDto,
+  ChangePasswordDto,
   UserRelatedData,
 } from '../../common';
-import { DeleteResult } from 'typeorm/browser';
+import { DeleteResult, QueryFailedError } from 'typeorm';
 
 @Injectable()
 export class UserService {
@@ -37,6 +42,7 @@ export class UserService {
           surname,
           username,
           password: hashedPassword,
+          authProvider: AuthProviderEnum.LOCAL,
           userRelatedData: {},
         });
 
@@ -46,6 +52,37 @@ export class UserService {
       });
     } catch (e: any) {
       // Postgres unique violation
+      if (e?.code === '23505') {
+        throw new ConflictException('Email or username already exists');
+      }
+      throw e;
+    }
+  }
+
+  async createOAuthUser(params: {
+    email: string;
+    username: string;
+    name: string;
+    surname: string;
+  }) {
+    const { email, username, name, surname } = params;
+    try {
+      return await this.datasSource.transaction(async (manager) => {
+        const user = manager.create(User, {
+          email,
+          name,
+          surname,
+          username,
+          password: null,
+          authProvider: AuthProviderEnum.GOOGLE,
+          userRelatedData: {},
+        });
+
+        const saved = await manager.save(User, user);
+        delete (saved as any).password;
+        return saved;
+      });
+    } catch (e: any) {
       if (e?.code === '23505') {
         throw new ConflictException('Email or username already exists');
       }
@@ -81,6 +118,40 @@ export class UserService {
     // UserRelatedData row will be deleted by DB FK onDelete: 'CASCADE'
     const deletedUser = this.toUserResponse(res.raw[0]);
     return { deleted: true, deletedUser: deletedUser };
+  }
+
+  async updateUserProfile(id: number, dto: UpdateProfileDto) {
+    const patch: Partial<Pick<User, 'name' | 'surname' | 'username' | 'email'>> =
+      {};
+    if (dto.name !== undefined) patch.name = dto.name;
+    if (dto.surname !== undefined) patch.surname = dto.surname;
+    if (dto.username !== undefined) patch.username = dto.username;
+    if (dto.email !== undefined) patch.email = dto.email;
+
+    if (Object.keys(patch).length === 0) {
+      return this.getUserById(id);
+    }
+
+    try {
+      const result = await this.userRepository
+        .createQueryBuilder()
+        .update(User)
+        .set(patch)
+        .where('id = :id', { id })
+        .returning('*')
+        .execute();
+
+      if (!result.raw[0]) {
+        throw new NotFoundException(`User with id ${id} not found`);
+      }
+    } catch (e) {
+      if (e instanceof QueryFailedError && (e as any).code === '23505') {
+        throw new ConflictException('Email or username already exists');
+      }
+      throw e;
+    }
+
+    return this.getUserById(id);
   }
 
   async updateUserById(id: number, dto: UpdateUserDto) {
@@ -119,6 +190,57 @@ export class UserService {
         totalPages: Math.ceil(total / p.limit),
       },
     };
+  }
+
+  async getProfileAuthFlags(userId: number): Promise<{
+    authProvider: AuthProviderEnum;
+    canChangePassword: boolean;
+  }> {
+    const row = await this.userRepository
+      .createQueryBuilder('u')
+      .select(['u.id', 'u.authProvider'])
+      .addSelect('u.password')
+      .where('u.id = :id', { id: userId })
+      .getOne();
+
+    if (!row) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      authProvider: row.authProvider,
+      canChangePassword:
+        row.authProvider === AuthProviderEnum.LOCAL && !!row.password,
+    };
+  }
+
+  async changePasswordForUser(userId: number, dto: ChangePasswordDto) {
+    const user = await this.userRepository
+      .createQueryBuilder('u')
+      .addSelect('u.password')
+      .where('u.id = :id', { id: userId })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.authProvider !== AuthProviderEnum.LOCAL || !user.password) {
+      throw new ForbiddenException(
+        'This account uses Google sign-in. Password is not managed here.',
+      );
+    }
+
+    const currentOk = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
+    if (!currentOk) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.userRepository.update({ id: userId }, { password: hashedPassword });
   }
 
   async getUserByLoginWithPassword(login: string) {

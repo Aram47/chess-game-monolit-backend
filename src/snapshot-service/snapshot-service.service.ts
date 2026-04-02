@@ -85,6 +85,93 @@ export class SnapshotServiceService {
       .exec();
   }
 
+  async countSolvedProblems(userId: string): Promise<number> {
+    return this.problemSnapshotRepository
+      .countDocuments({ userId })
+      .exec();
+  }
+
+  async getUserGameStats(userId: string): Promise<{
+    played: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  }> {
+    const participant = {
+      $or: [{ white: userId }, { black: userId }],
+    };
+
+    const [agg] = await this.gameSnapshotRepository
+      .aggregate<{
+        played: number;
+        wins: number;
+        losses: number;
+        draws: number;
+      }>([
+        { $match: participant },
+        {
+          $group: {
+            _id: null,
+            played: { $sum: 1 },
+            draws: {
+              $sum: { $cond: [{ $eq: ['$isDraw', true] }, 1, 0] },
+            },
+            wins: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$isDraw', false] },
+                      { $eq: ['$winnerId', userId] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            losses: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$isDraw', false] },
+                      { $ne: ['$winnerId', null] },
+                      { $ne: ['$winnerId', userId] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+
+    return {
+      played: agg?.played ?? 0,
+      wins: agg?.wins ?? 0,
+      losses: agg?.losses ?? 0,
+      draws: agg?.draws ?? 0,
+    };
+  }
+
+  async getRecentGames(userId: string, limit = 10) {
+    const safeLimit = Math.min(50, Math.max(1, limit));
+    const filter = {
+      $or: [{ white: userId }, { black: userId }],
+    };
+
+    return this.gameSnapshotRepository
+      .find(filter)
+      .sort({ finishedAt: -1 })
+      .limit(safeLimit)
+      .lean()
+      .exec();
+  }
+
   private async storePvPGameResult(room: IPvPGameRoom) {
     const createGameSnapshot = await this.gameSnapshotRepository.create({
       fen: room.fen,

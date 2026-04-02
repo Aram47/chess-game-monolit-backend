@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 import { User } from './user.entity';
 import { Plan, Role } from '../../';
 
@@ -26,6 +27,13 @@ export class UserRelatedData {
 
   @Column({ type: 'int8', default: 0 })
   level: number;
+
+  @ApiProperty({
+    example: 1500,
+    description: 'Player rating (ELO); calculation updated separately',
+  })
+  @Column({ type: 'int', default: 800 })
+  elo: number;
 
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

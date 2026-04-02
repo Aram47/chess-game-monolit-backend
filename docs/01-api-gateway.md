@@ -7,11 +7,12 @@ The API Gateway module serves as the main entry point for all HTTP REST API requ
 ## Purpose
 
 The API Gateway module:
-- Centralizes authentication and authorization endpoints
-- Provides a single point of entry for user management operations
+- Centralizes **public** authentication endpoints (register, login, refresh, logout)
 - Handles token management (login, logout, refresh)
-- Routes requests to appropriate backend services (UserService, AuthService)
+- Delegates registration to `UserService` and auth flows to `AuthService`
 - Manages HTTP cookies for token storage
+
+**User listing, arbitrary user get/update/delete by id** are **not** exposed on `/api`. Admins use **Owner Service** (`/owner-service/...`) with `AuthGuard` + `RolesGuard` (e.g. `SUPER_ADMIN`).
 
 ## Architecture
 
@@ -124,105 +125,11 @@ User logout endpoint.
 
 ---
 
-### User Management Endpoints
+### User administration (not on API Gateway)
 
-#### GET `/api`
-Retrieves a paginated list of users.
+Cross-user and directory operations are implemented on **Owner Service** only. See `docs/06-owner-service.md` for endpoints such as `GET /owner-service/get_users`, `GET /owner-service/get_user/:id`, `PATCH /owner-service/update_user/:id`, `DELETE /owner-service/delete_user/:id` (all require appropriate admin roles).
 
-**Query Parameters:**
-- `page`: Page number (default: 1)
-- `limit`: Items per page (default: 10)
-- `sortBy`: Field to sort by (default: 'id')
-- `sortDir`: Sort direction - 'ASC' or 'DESC' (default: 'DESC')
-
-**Response:**
-- **Status:** 200 OK
-- **Body:** 
-```typescript
-{
-  users: User[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }
-}
-```
-
-**Flow:**
-1. Parses pagination parameters
-2. Delegates to `UserService.getUsers()`
-3. Returns paginated user list with metadata
-
----
-
-#### GET `/api/:id`
-Retrieves a user by ID.
-
-**Path Parameters:**
-- `id`: User ID (number)
-
-**Response:**
-- **Status:** 200 OK
-- **Body:** User object with related data
-
-**Flow:**
-1. Extracts user ID from path
-2. Delegates to `UserService.getUserById()`
-3. Returns user with joined `userRelatedData`
-
----
-
-#### PATCH `/api/:id`
-Updates a user by ID.
-
-**Path Parameters:**
-- `id`: User ID (number)
-
-**Request Body:**
-```typescript
-{
-  name?: string;
-  surname?: string;
-  username?: string;
-  email?: string;
-  // All fields are optional
-}
-```
-
-**Response:**
-- **Status:** 200 OK
-- **Body:** Updated user object (without password)
-
-**Flow:**
-1. Extracts user ID and update data
-2. Delegates to `UserService.updateUserById()`
-3. Returns updated user
-
----
-
-#### DELETE `/api/:id`
-Deletes a user by ID.
-
-**Path Parameters:**
-- `id`: User ID (number)
-
-**Response:**
-- **Status:** 200 OK
-- **Body:** 
-```typescript
-{
-  deleted: true;
-  deletedUser: User;
-}
-```
-
-**Flow:**
-1. Extracts user ID from path
-2. Delegates to `UserService.deleteUserById()`
-3. Cascades deletion of related data
-4. Returns deletion confirmation
+Authenticated **self-service** profile APIs (e.g. `GET /api/me`) may be added later on the gateway with `AuthGuard` and JWT `sub` scoping.
 
 ---
 
@@ -243,5 +150,5 @@ Deletes a user by ID.
 ## Integration Points
 
 - **AuthService**: Handles authentication logic and token generation
-- **UserService**: Manages user CRUD operations
+- **UserService**: Used for **registration** (`createUser`) only on this module
 - **Database**: PostgreSQL for user data persistence

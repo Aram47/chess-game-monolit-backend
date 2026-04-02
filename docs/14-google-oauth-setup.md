@@ -66,7 +66,7 @@ Environment keys are centralized in `common/constants/env_constants.ts`.
 3. Controller calls `oauthService.handleGoogleCallback(profile)`.
 4. Service behavior in current implementation:
    - finds user by email (case-insensitive)
-   - creates a user if it does not exist (with generated password + unique username)
+   - creates a user if it does not exist via **`UserService.createOAuthUser`**: `authProvider = google`, **`password = null`**, unique username (no local password)
    - issues JWT access/refresh tokens
    - returns sanitized user payload and redirect target
 5. On failure, controller redirects to `${FRONTEND_URL}/login?oauth=failed`.
@@ -118,7 +118,7 @@ Already present in:
    - require non-empty `profile.email`
 2. **User lookup/linking strategy**
    - find user by email
-   - if not found, create new user and initialize related data via existing user creation flow
+   - if not found, create new user and related data via **`createOAuthUser`** (not email/password registration)
 3. **Token creation**
    - uses existing JWT secrets/expirations through `JwtUtils`
 4. **Controller contract**
@@ -175,7 +175,23 @@ Why:
 
 ---
 
-## 10) Troubleshooting Checklist
+## 10) Legacy Google-created rows (optional backfill)
+
+Older versions created Google users with a **random bcrypt password** and no `authProvider` distinction. New sign-ups use **`authProvider = google`** and **`password` NULL**.
+
+If you still have such legacy rows and want them to match Google-only behavior (no `/api/login` password path, no `PATCH .../profile/me/password`), run a **one-off SQL** for known accounts only. Table/column names follow TypeORM defaults (e.g. `"Users"`, `"authProvider"`, `"password"`):
+
+```sql
+UPDATE "Users"
+SET "authProvider" = 'google', "password" = NULL
+WHERE id IN (/* ids you know are Google-only */);
+```
+
+Do not run blindly: local email/password users must keep `authProvider = 'local'` and a non-null password hash.
+
+---
+
+## 11) Troubleshooting Checklist
 
 - `redirect_uri_mismatch`
   - verify exact URI in Google Console and `GOOGLE_CALLBACK_URL`
@@ -190,7 +206,7 @@ Why:
 
 ---
 
-## 11) Why this module split is correct
+## 12) Why this module split is correct
 
 Keeping OAuth in `auth/oauth` submodule gives:
 

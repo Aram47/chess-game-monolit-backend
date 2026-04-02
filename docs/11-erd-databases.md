@@ -20,7 +20,8 @@ erDiagram
     varchar surname
     varchar username UK
     varchar email UK
-    varchar password "select:false"
+    varchar password "nullable select:false"
+    varchar authProvider "local default google for OAuth sign-up"
     timestamp createdAt
     timestamp updatedAt
   }
@@ -32,8 +33,18 @@ erDiagram
     varchar plan "default FREE"
     bigint xp
     int8 level
+    int elo "default 1500"
     timestamp createdAt
     timestamp updatedAt
+  }
+
+  USER_FRIENDS {
+    int id PK
+    int userId FK "smaller Users.id"
+    int friendId FK "larger Users.id"
+    varchar status "pending accepted rejected"
+    int requestedBy "must be userId or friendId"
+    timestamp createdAt
   }
 
   PROBLEM_CATEGORIES {
@@ -72,6 +83,8 @@ erDiagram
   }
 
   USERS ||--|| USER_RELATED_DATA : "1:1 (cascade create, delete)"
+  USERS ||--o{ USER_FRIENDS : "user userId"
+  USERS ||--o{ USER_FRIENDS : "friend friendId"
   PROBLEM_CATEGORIES ||--o{ CHESS_PROBLEMS : "1:N category_id"
   CHESS_PROBLEMS ||--o{ PROBLEM_THEMES : "1:N problem_id"
   THEMES ||--o{ PROBLEM_THEMES : "1:N theme_id"
@@ -79,7 +92,9 @@ erDiagram
 
 ### PostgreSQL Notes
 
+- `Users.password` may be **null** for Google sign-up; `Users.authProvider` distinguishes `local` vs `google`.
 - `Users` <-> `UserRelatedData` is modeled as one-to-one.
+- `UserFriends`: one row per unordered pair; `userId` < `friendId` enforced by a check constraint; unique on `(userId, friendId)`; both FKs cascade on user delete.
 - `chess_problems` belongs to one `problem_categories` row.
 - Problem-theme is many-to-many through `problem_themes`.
 - In code, `ProblemTheme` includes both scalar columns (`problemId`, `themeId`) and joined relation columns (`problem_id`, `theme_id`), so schema naming should be reviewed for consistency.
@@ -123,6 +138,7 @@ erDiagram
 ### MongoDB Notes
 
 - `GameSnapshot` has indexes on `white`, `black`, `finishedAt`, and `isBot+finishedAt`.
+- `ProblemSnapshot` has an index on `userId` (for counts and user-scoped queries).
 - `ProblemSnapshot` stores references as plain strings (`userId`, `problemId`), not Mongo ObjectId refs.
 - PvP snapshot persistence is implemented.
 - PvE snapshot persistence is implemented and flagged with `isBot: true`.

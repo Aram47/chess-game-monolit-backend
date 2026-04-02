@@ -4,6 +4,7 @@ import { UserService } from '../user/user.service';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import {
   User,
+  AuthProviderEnum,
   CreateUserDto,
   ENV_VARIABLES,
   JwtUtils,
@@ -22,6 +23,16 @@ export class AuthService {
     const user = await this.userService.getUserByLoginWithPassword(dto.login);
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    if (
+      user.authProvider !== AuthProviderEnum.LOCAL ||
+      user.password == null ||
+      user.password === ''
+    ) {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Use Google to log in.',
+      );
+    }
 
     const ok = await bcrypt.compare(dto.password, user.password);
 

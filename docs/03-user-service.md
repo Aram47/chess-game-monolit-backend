@@ -9,26 +9,33 @@ The User Service module handles all user-related data operations, including user
 The User Service module:
 - Manages user CRUD operations
 - Handles user authentication data (password hashing)
-- Manages user-related data (roles, plans, XP, statistics)
+- Manages user-related data (roles, plans, XP, level, ELO)
+- Exposes authenticated **profile** and **friends** HTTP APIs (`/user-service`)
+- Composes profile stats from Mongo snapshots (solved puzzles, game W/L/D, recent games)
 - Provides user data retrieval with proper joins
 - Ensures data integrity through transactions
 
 ## Architecture
 
 The module consists of:
-- **UserService**: Core user business logic and data access
-- **UserModule**: Module configuration with TypeORM entities
+- **UserService**: Core user business logic and data access (including `createOAuthUser`, `changePasswordForUser`, `getProfileAuthFlags`)
+- **UserProfileService**: Builds profile payloads (Postgres user + Mongo aggregates via `SnapshotServiceService`)
+- **UserFriendService**: Friend requests and friendships (`UserFriends` table, one row per user pair)
+- **UserController**: Authenticated routes under `user-service`
+- **UserModule**: TypeORM entities + imports `SnapshotServiceModule` for aggregates
 
 ### Dependencies
 
 - **TypeORM**: For database operations
 - **PostgreSQL**: Database for user persistence
 - **bcrypt**: For password hashing
+- **SnapshotServiceModule**: Mongo counts and game stats for profiles
 
 ### Database Entities
 
 - **User**: Main user entity with basic information
-- **UserRelatedData**: Related user data (roles, plans, statistics)
+- **UserRelatedData**: Related user data (roles, plan, xp, level, **elo**)
+- **UserFriend**: Friendship row between two users (canonical `userId` < `friendId`, single row per pair)
 
 ## Core Functionality
 
@@ -75,18 +82,17 @@ The service provides multiple methods for retrieving users:
 
 ### User Updates
 
-The `updateUserById()` method:
+The `updateUserById()` method (admin / owner flows):
 - Updates user fields using TypeORM query builder
 - Returns updated user data
 - Validates user existence
 - Uses `RETURNING` clause for immediate feedback
 
-**Supported Fields:**
-- `name`
-- `surname`
-- `username`
-- `email`
-- Any other User entity fields
+**Supported Fields:** any fields on `UpdateUserDto` (partial registration shape; includes optional password).
+
+The `updateUserProfile()` method (self-service):
+- Updates only **name**, **surname**, **username**, **email** from `UpdateProfileDto`
+- Maps unique violations to `409 Conflict` (email/username)
 
 ---
 
@@ -234,6 +240,42 @@ Utility method to sanitize user data.
 
 ---
 
+## HTTP API (`UserController`, `AuthGuard` required)
+
+Base path: **`/user-service`**. Uses the same auth mechanism as other guarded routes (e.g. JWT / cookies per `AuthGuard`).
+
+### Profile
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/user-service/profile/me` | Current user profile including **email**, **authProvider**, **canChangePassword**, **elo**, stats, **recentGames** |
+| PATCH | `/user-service/profile/me` | Update profile (`UpdateProfileDto`: optional name, surname, username, email) |
+| PATCH | `/user-service/profile/me/password` | Change password (`ChangePasswordDto`: `currentPassword`, `newPassword`). **403** if Google-only; **400** if current password wrong |
+| GET | `/user-service/profile/:userId` | Public profile for another user (**no email**, no auth flags); same stats and recent games |
+
+**Stats** are derived at read time from Mongo:
+- **solvedProblemsCount** — count of `ProblemSnapshot` documents for the user id (string)
+- **playedGames**, **wins**, **losses**, **draws** — aggregation over `GameSnapshot` where the user is `white` or `black`
+
+**ELO** is stored on `UserRelatedData.elo`. Rating **calculation** is not implemented yet; only persistence and API exposure.
+
+**Auth flags (GET `/profile/me` only):** `authProvider` is `local` or `google`. `canChangePassword` is true only for local accounts that have a stored password; the frontend should hide the change-password form when false.
+
+### Friends (`UserFriends`)
+
+One row per unordered pair: `userId` < `friendId`, with `status` (`pending` | `accepted` | `rejected`) and `requestedBy`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/user-service/friends/request` | Body `{ friendId }` — create pending or reopen from rejected |
+| PATCH | `/user-service/friends/:id/accept` | Recipient accepts pending request |
+| PATCH | `/user-service/friends/:id/reject` | Recipient rejects pending request |
+| DELETE | `/user-service/friends/:id` | Unfriend (accepted), cancel outgoing pending, or remove a rejected row |
+| GET | `/user-service/friends` | Accepted friends with counterparty snippet |
+| GET | `/user-service/friends/pending` | `{ incoming, outgoing }` pending lists |
+
+---
+
 ## Data Models
 
 ### User Entity
@@ -244,7 +286,8 @@ Utility method to sanitize user data.
   username: string;       // Unique
   name: string;
   surname: string;
-  password: string;       // Hashed, excluded from queries by default
+  password: string | null; // Bcrypt for local; null for Google-only sign-up
+  authProvider: 'local' | 'google';
   userRelatedData: UserRelatedData;
   createdAt: Date;
   updatedAt: Date;
@@ -255,14 +298,28 @@ Utility method to sanitize user data.
 ```typescript
 {
   id: number;
-  userId: number;         // Foreign key to User
+  userId: number;         // Foreign key to User (join column on this table)
   role: Role;             // ADMIN, USER, SUPER_ADMIN
   plan: Plan;             // FREE, PREMIUM, etc.
   xp: number;             // Experience points
-  level: number;          // User level (0-100)
-  solvedProblems: number; // Count of solved problems
-  winGames: number;       // Count of won games
-  loseGames: number;      // Count of lost games
+  level: number;          // User level
+  elo: number;            // Rating (default 1500); calculation updated separately
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+Puzzle/game win-loss counts are **not** duplicated here; they come from Mongo snapshots when serving profiles.
+
+### UserFriend Entity
+```typescript
+{
+  id: number;
+  userId: number;         // Always the smaller User.id in the pair (FK)
+  friendId: number;       // Always the larger User.id in the pair (FK)
+  status: 'pending' | 'accepted' | 'rejected';
+  requestedBy: number;    // Must equal userId or friendId
+  createdAt: Date;
 }
 ```
 
@@ -289,9 +346,10 @@ Utility method to sanitize user data.
 ## Integration Points
 
 - **AuthService**: Uses `getUserByLoginWithPassword()` for authentication
-- **ApiGatewayService**: Uses all CRUD methods for user management
-- **OwnerService**: Uses user methods for admin operations
-- **Database**: PostgreSQL with TypeORM for data persistence
+- **ApiGatewayService**: Uses `createUser()` for **registration** only (public `POST /api/register`)
+- **OwnerServiceService**: Uses user CRUD for **admin** operations (`SUPER_ADMIN` routes under `/owner-service`)
+- **SnapshotServiceService**: Supplies Mongo aggregates for profile stats (`countSolvedProblems`, `getUserGameStats`, `getRecentGames`)
+- **Database**: PostgreSQL with TypeORM for user/friend persistence; Mongo for historical game/puzzle snapshots
 
 ## Future Improvements
 
