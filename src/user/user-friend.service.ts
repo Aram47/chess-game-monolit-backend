@@ -14,6 +14,7 @@ import {
   FriendshipRowDto,
   PendingFriendshipsDto,
   PublicUserSnippetDto,
+  SendFriendRequestDto,
 } from '../../common';
 
 @Injectable()
@@ -88,7 +89,35 @@ export class UserFriendService {
     }
   }
 
-  async sendRequest(fromUserId: number, targetUserId: number): Promise<FriendshipRowDto> {
+  private async resolveTargetUserId(dto: SendFriendRequestDto): Promise<number> {
+    const username = typeof dto.username === 'string' ? dto.username : '';
+    const hasUsername = username.length >= 3;
+    const id = dto.friendId;
+    const hasId = id != null && Number.isInteger(id) && id >= 1;
+
+    if (hasId && hasUsername) {
+      throw new BadRequestException('Provide either friendId or username, not both');
+    }
+    if (!hasId && !hasUsername) {
+      throw new BadRequestException('Provide friendId or username');
+    }
+
+    if (hasId) {
+      return id!;
+    }
+
+    const byName = await this.userRepo.findOne({
+      where: { username },
+    });
+    if (!byName) {
+      throw new NotFoundException('No user found with that username');
+    }
+    return byName.id;
+  }
+
+  async sendRequest(fromUserId: number, dto: SendFriendRequestDto): Promise<FriendshipRowDto> {
+    const targetUserId = await this.resolveTargetUserId(dto);
+
     if (fromUserId === targetUserId) {
       throw new BadRequestException('Cannot send a friend request to yourself');
     }

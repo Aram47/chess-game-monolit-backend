@@ -259,4 +259,75 @@ export class UserService {
     const { password, ...rest } = user;
     return rest;
   }
+
+  /**
+   * Public directory search for authenticated clients (no email).
+   * - All-digit `q`: match by user id (0 or 1 result).
+   * - Otherwise: ILIKE on username, name, surname (min length 2 for text).
+   */
+  async searchPublicUsers(
+    q: string,
+    limit: number,
+  ): Promise<
+    Array<{
+      id: number;
+      username: string;
+      name: string;
+      surname: string;
+      elo: number;
+    }>
+  > {
+    const trimmed = q.trim();
+    if (!trimmed.length) {
+      throw new BadRequestException('Search query cannot be empty');
+    }
+
+    const safeLimit = Math.min(20, Math.max(1, limit));
+
+    if (/^\d+$/.test(trimmed)) {
+      const id = parseInt(trimmed, 10);
+      if (!Number.isSafeInteger(id) || id < 1) {
+        return [];
+      }
+      const user = await this.userRepository.findOne({
+        where: { id },
+        relations: ['userRelatedData'],
+      });
+      if (!user) {
+        return [];
+      }
+      return [this.toPublicSearchSnippet(user)];
+    }
+
+    const sanitized = trimmed.replace(/[%_\\]/g, '');
+    if (sanitized.length < 2) {
+      throw new BadRequestException(
+        'Enter at least 2 characters to search by username or name',
+      );
+    }
+
+    const pattern = `%${sanitized}%`;
+
+    const users = await this.userRepository
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.userRelatedData', 'rd')
+      .where('u.username ILIKE :pattern', { pattern })
+      .orWhere('u.name ILIKE :pattern', { pattern })
+      .orWhere('u.surname ILIKE :pattern', { pattern })
+      .orderBy('u.username', 'ASC')
+      .take(safeLimit)
+      .getMany();
+
+    return users.map((u) => this.toPublicSearchSnippet(u));
+  }
+
+  private toPublicSearchSnippet(user: User) {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      surname: user.surname,
+      elo: user.userRelatedData?.elo ?? 800,
+    };
+  }
 }

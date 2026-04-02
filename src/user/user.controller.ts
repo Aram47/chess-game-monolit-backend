@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   Delete,
   UseGuards,
   UsePipes,
@@ -30,9 +31,12 @@ import {
   UserPublicProfileResponseDto,
   FriendshipRowDto,
   PendingFriendshipsDto,
+  UserSearchQueryDto,
+  PublicUserSnippetDto,
 } from '../../common';
 import { UserProfileService } from './user-profile.service';
 import { UserFriendService } from './user-friend.service';
+import { UserService } from './user.service';
 
 @ApiTags('User Service')
 @UseGuards(AuthGuard)
@@ -48,6 +52,7 @@ export class UserController {
   constructor(
     private readonly userProfileService: UserProfileService,
     private readonly userFriendService: UserFriendService,
+    private readonly userService: UserService,
   ) {}
 
   @ApiOperation({ summary: 'Get my profile (includes email) for viewing and editing' })
@@ -82,6 +87,16 @@ export class UserController {
     return this.userProfileService.changeMyPassword(user.sub, dto);
   }
 
+  @ApiOperation({
+    summary:
+      'Search users by id (numeric q) or partial username / first name / surname (min 2 chars)',
+  })
+  @ApiResponse({ status: 200, type: [PublicUserSnippetDto] })
+  @Get('users/search')
+  async searchUsers(@Query() query: UserSearchQueryDto) {
+    return this.userService.searchPublicUsers(query.q, query.limit ?? 10);
+  }
+
   @ApiOperation({ summary: 'Get another user public profile (no email)' })
   @ApiParam({ name: 'userId', type: Number })
   @ApiResponse({ status: 200, type: UserPublicProfileResponseDto })
@@ -99,7 +114,7 @@ export class UserController {
     @UserDecorator() user: UserDecoratorDto,
     @Body() dto: SendFriendRequestDto,
   ) {
-    return this.userFriendService.sendRequest(user.sub, dto.friendId);
+    return this.userFriendService.sendRequest(user.sub, dto);
   }
 
   @ApiOperation({ summary: 'Accept an incoming friend request' })

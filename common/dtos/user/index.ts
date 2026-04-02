@@ -9,3 +9,4 @@ export * from './update-profile.dto';
 export * from './send-friend-request.dto';
 export * from './user-profile.response.dto';
 export * from './friendship.response.dto';
+export * from './user-search.query.dto';

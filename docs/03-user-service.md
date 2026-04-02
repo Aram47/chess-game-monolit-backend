@@ -252,6 +252,7 @@ Base path: **`/user-service`**. Uses the same auth mechanism as other guarded ro
 | PATCH | `/user-service/profile/me` | Update profile (`UpdateProfileDto`: optional name, surname, username, email) |
 | PATCH | `/user-service/profile/me/password` | Change password (`ChangePasswordDto`: `currentPassword`, `newPassword`). **403** if Google-only; **400** if current password wrong |
 | GET | `/user-service/profile/:userId` | Public profile for another user (**no email**, no auth flags); same stats and recent games |
+| GET | `/user-service/users/search?q=&limit=` | Directory search (authenticated): if `q` is all digits, lookup by **user id**; otherwise **partial** match on username, first name, or surname (**min 2** characters after stripping `%` / `_`). Returns `id`, `username`, `name`, `surname`, `elo` only (no email). `limit` 1–20, default 10 |
 
 **Stats** are derived at read time from Mongo:
 - **solvedProblemsCount** — count of `ProblemSnapshot` documents for the user id (string)
@@ -267,7 +268,7 @@ One row per unordered pair: `userId` < `friendId`, with `status` (`pending` | `a
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/user-service/friends/request` | Body `{ friendId }` — create pending or reopen from rejected |
+| POST | `/user-service/friends/request` | Body **`friendId`** (number) **or** **`username`** (exact match, 3–20 chars; optional leading `@` trimmed) — exactly one required. Creates pending or reopens from rejected |
 | PATCH | `/user-service/friends/:id/accept` | Recipient accepts pending request |
 | PATCH | `/user-service/friends/:id/reject` | Recipient rejects pending request |
 | DELETE | `/user-service/friends/:id` | Unfriend (accepted), cancel outgoing pending, or remove a rejected row |
