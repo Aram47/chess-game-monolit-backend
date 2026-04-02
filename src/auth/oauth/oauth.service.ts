@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { CookieOptions } from 'express';
 import { UserService } from '../../user/user.service';
 import { ENV_VARIABLES, JwtUtils, User } from '../../../common';
 import { GoogleOauthProfileDto } from '../../../common';
@@ -76,6 +77,28 @@ export class OauthService {
       user: safeUser,
       redirectTo: `${this.configService.get<string>(ENV_VARIABLES.FRONTEND_URL)}/auth/callback`,
     };
+  }
+
+  getFrontendUrl(): string {
+    return this.configService.get<string>(ENV_VARIABLES.FRONTEND_URL) || '/';
+  }
+
+  getAuthCookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    };
+  }
+
+  buildSuccessRedirectUrl(result: { redirectTo?: string; user: unknown }): string {
+    const callbackUrl = result.redirectTo || `${this.getFrontendUrl()}/auth/callback`;
+    const encodedUser = encodeURIComponent(JSON.stringify(result.user));
+    return `${callbackUrl}?user=${encodedUser}`;
+  }
+
+  buildFailureRedirectUrl(): string {
+    return `${this.getFrontendUrl()}/login?oauth=failed`;
   }
 
   private buildBaseUsername(profile: GoogleOauthProfileDto, email: string): string {

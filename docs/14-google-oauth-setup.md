@@ -68,7 +68,7 @@ Environment keys are centralized in `common/constants/env_constants.ts`.
    - finds user by email (case-insensitive)
    - creates a user if it does not exist (with generated password + unique username)
    - issues JWT access/refresh tokens
-   - returns redirect target
+   - returns sanitized user payload and redirect target
 5. On failure, controller redirects to `${FRONTEND_URL}/login?oauth=failed`.
 
 ---
