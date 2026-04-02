@@ -79,6 +79,11 @@ This directory contains comprehensive documentation for all modules in the Chess
    - `POST /game/position/analyze` (auth, defaults, response shape)
    - Links to engine MultiPV behavior and DTOs
 
+14. **[Google OAuth Setup](./14-google-oauth-setup.md)** - Backend-centric Google sign-in/sign-up integration
+   - OAuth module structure and request lifecycle
+   - Google Cloud redirect URI setup and env variables
+   - Implementation checklist for callback/token flow
+
 ---
 
 ## Architecture Overview
@@ -117,6 +122,7 @@ The application follows a modular monolith architecture with the following layer
 - **Chess Engine**: Stockfish
 - **Chess Logic**: chess.js
 - **Authentication**: JWT
+- **Social Authentication**: Google OAuth 2.0 (backend-centric callback flow)
 
 ---
 

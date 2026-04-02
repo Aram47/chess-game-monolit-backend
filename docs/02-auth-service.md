@@ -18,12 +18,17 @@ The Auth Service module:
 The module consists of:
 - **AuthService**: Core authentication business logic
 - **AuthModule**: Module configuration and dependencies
+- **OauthModule**: OAuth provider integration boundary
+- **OauthController**: OAuth entry and callback endpoints
+- **OauthService**: OAuth callback orchestration integration point
+- **GoogleStrategy**: Google OAuth passport strategy
 
 ### Dependencies
 
 - `UserModule`: For user data retrieval and validation
 - `JwtUtils`: For JWT token generation and verification (from CommonModule)
 - `ConfigService`: For accessing environment variables
+- `PassportModule`: For OAuth strategy guards
 
 ## Core Functionality
 
@@ -141,6 +146,18 @@ Handles user logout.
 
 ---
 
+### OAuth Endpoints (Google)
+
+The OAuth module exposes:
+
+- `GET /api/auth/google`: Starts Google OAuth flow
+- `GET /api/auth/google/callback`: Handles Google callback and delegates to `OauthService`
+
+Implementation note:
+- `OauthService.handleGoogleCallback()` is the extension point where user linking/creation and token issuing should be implemented.
+
+---
+
 ## Security Features
 
 1. **Password Hashing**: Uses bcrypt for secure password comparison
@@ -156,6 +173,10 @@ The service requires the following environment variables:
 - `JWT_REFRESH_SECRET`: Secret key for refresh token signing
 - `JWT_EXPIRES_IN`: Access token expiration time (e.g., "15m", "1h")
 - `JWT_REFRESH_EXPIRES_IN`: Refresh token expiration time (e.g., "7d", "30d")
+- `FRONTEND_URL`: Frontend base URL used for auth redirects after OAuth callbacks
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID from Google Cloud console
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret from Google Cloud console
+- `GOOGLE_CALLBACK_URL`: OAuth callback endpoint (must exactly match Google OAuth redirect URI)
 
 ## Error Handling
 

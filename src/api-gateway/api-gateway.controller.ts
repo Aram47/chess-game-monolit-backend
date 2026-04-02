@@ -165,4 +165,5 @@ export class ApiGatewayController {
     res.clearCookie('refreshToken');
     return res.status(200).json({ message: 'Logged out successfully' });
   }
+
 }

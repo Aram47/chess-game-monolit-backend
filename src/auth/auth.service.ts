@@ -2,7 +2,13 @@ import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../user/user.service';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { CreateUserDto, ENV_VARIABLES, JwtUtils, LoginDto } from '../../common';
+import {
+  User,
+  CreateUserDto,
+  ENV_VARIABLES,
+  JwtUtils,
+  LoginDto,
+} from '../../common';
 
 @Injectable()
 export class AuthService {
@@ -21,24 +27,7 @@ export class AuthService {
 
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.userRelatedData.role,
-    };
-
-    const accessToken = this.jwtUtils.generateToken(
-      payload,
-      this.configService.get(ENV_VARIABLES.JWT_EXPIRES_IN),
-    );
-
-    const refreshToken = this.jwtUtils.generateRefreshToken(
-      payload,
-      this.configService.get(ENV_VARIABLES.JWT_REFRESH_EXPIRES_IN),
-    );
-
-    const safeUser = this.userService.toUserResponse(user);
-    return { accessToken, refreshToken, user: safeUser };
+    return this.createAuthSessionForUser(user);
   }
 
   async register(dto: CreateUserDto) {
@@ -84,5 +73,26 @@ export class AuthService {
     if (!payload) throw new UnauthorizedException('Invalid access token');
 
     return true;
+  }
+
+  async createAuthSessionForUser(user: User) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.userRelatedData.role,
+    };
+
+    const accessToken = this.jwtUtils.generateToken(
+      payload,
+      this.configService.get(ENV_VARIABLES.JWT_EXPIRES_IN),
+    );
+
+    const refreshToken = this.jwtUtils.generateRefreshToken(
+      payload,
+      this.configService.get(ENV_VARIABLES.JWT_REFRESH_EXPIRES_IN),
+    );
+
+    const safeUser = this.userService.toUserResponse(user);
+    return { accessToken, refreshToken, user: safeUser };
   }
 }
