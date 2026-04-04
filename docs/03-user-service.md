@@ -22,7 +22,7 @@ The module consists of:
 - **UserProfileService**: Builds profile payloads (Postgres user + Mongo aggregates via `SnapshotServiceService`)
 - **UserFriendService**: Friend requests and friendships (`UserFriends` table, one row per user pair)
 - **UserController**: Authenticated routes under `user-service`
-- **UserModule**: TypeORM entities + imports `SnapshotServiceModule` for aggregates
+- **UserModule**: TypeORM entities + imports `SnapshotServiceModule` for aggregates + `NotificationsModule` for friend-related SSE (via `NotificationsPublisherService`)
 
 ### Dependencies
 
@@ -275,6 +275,8 @@ One row per unordered pair: `userId` < `friendId`, with `status` (`pending` | `a
 | GET | `/user-service/friends` | Accepted friends with counterparty snippet |
 | GET | `/user-service/friends/pending` | `{ incoming, outgoing }` pending lists |
 
+**Offline / login:** Clients should call `GET /user-service/friends/pending` and `GET /user-service/friends` after login so incoming requests and accepted friends match the database (SSE alone does not replay history). Other social events are stored in `GET /notifications/inbox` when the user was offline. See `docs/07-notification-service.md`.
+
 ---
 
 ## Data Models
@@ -350,7 +352,7 @@ Puzzle/game win-loss counts are **not** duplicated here; they come from Mongo sn
 - **ApiGatewayService**: Uses `createUser()` for **registration** only (public `POST /api/register`)
 - **OwnerServiceService**: Uses user CRUD for **admin** operations (`SUPER_ADMIN` routes under `/owner-service`)
 - **SnapshotServiceService**: Supplies Mongo aggregates for profile stats (`countSolvedProblems`, `getUserGameStats`, `getRecentGames`)
-- **Database**: PostgreSQL with TypeORM for user/friend persistence; Mongo for historical game/puzzle snapshots
+- **Database**: PostgreSQL with TypeORM for user/friend persistence; **`InboxNotifications`** (notification module) stores cross-cutting alerts by recipient `userId`; Mongo for historical game/puzzle snapshots (see [Database ERDs](./11-erd-databases.md))
 
 ## Future Improvements
 

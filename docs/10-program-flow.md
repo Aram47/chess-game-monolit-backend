@@ -27,7 +27,7 @@ It is a **runtime view** of the system, complementary to the per‑module docs.
 - Configures **Postgres / TypeORM**:
   - `type: 'postgres'`
   - Host/port/user/password/db from `ENV_VARIABLES.*`
-  - Entities: `User`, `UserRelatedData`, `ChessProblem`, `ProblemCategory`, `Theme`, `ProblemTheme`
+  - Entities: `User`, `UserRelatedData`, `UserFriend`, `InboxNotification`, `ChessProblem`, `ProblemCategory`, `Theme`, `ProblemTheme`
   - `synchronize: true` (schema auto‑sync for dev)
 - Imports feature modules:
   - `UserModule`, `Auth` (via `CommonModule`), `ApiGatewayModule`
@@ -408,7 +408,7 @@ There is **no background scheduler**; the “timeout” is enforced lazily:
 1. `@UseGuards(AuthGuard)` protects the route, so `req.user` has payload.
 2. `@UserDecorator()` provides `userMetaData.sub` (user id).
 3. Controller creates an RxJS `Subject` via `notificationsService.addConnection(userId)` and wires it to the SSE response.
-4. Starts a 25s heartbeat interval that pushes `{ event: 'ping', data: Date.now() }`.
+4. Starts a 25s heartbeat interval that pushes `{ type: 'ping', data: Date.now() }` (Nest `MessageEvent` uses `type` for the SSE `event:` line).
 5. On request `close`, clears heartbeat, removes connection from `NotificationsService`, unsubscribes.
 
 ### 6.2. Publishing Notifications via Redis
@@ -418,10 +418,19 @@ There is **no background scheduler**; the “timeout” is enforced lazily:
     - Calls `redisClient.duplicate()` to create subscriber.
     - Subscribes to `notifications:user` channel.
   - On each message:
-    - Parses JSON, expects `userId`, `event`, `data`, optional `id` + `retry`.
-    - Forwards as `SseEvent` to `notificationsService.pushToUser(userId, event)`.
+    - Parses JSON, expects `userId`, `event`, `data`, optional `id` + `retry` (`event` is mapped to `SseEvent.type` for the wire).
+    - Forwards as `SseEvent` to `notificationsService.pushToUser(userId, message)`.
 
 Any other service (e.g. Game / Socket / Owner) can publish to this channel to push notifications to online clients.
+
+- **`NotificationsPublisherService.publishToUser`** also writes to **`InboxNotifications`** (Postgres) for most event types, except those listed in `INBOX_NOTIFICATION_SKIP_EVENTS` (`friend.request.received`, `friend.request.sent`, `ping`). Skipped friend events are covered by **`GET /user-service/friends/pending`** after login.
+
+- **`UserFriendService`** uses **`NotificationsPublisherService.publishToUser`** after persisting:
+  - new/reopened pending → `friend.request.received` (recipient) and `friend.request.sent` (requester);
+  - accept → `friend.request.accepted` to **both** users;
+  - reject → `friend.request.rejected` to the requester (`friendshipId`);
+  - cancel pending → `friend.request.cancelled` to the recipient (`friendshipId`);
+  - unfriend → `friend.removed` to the other user (`friendshipId`).
 
 ---
 
@@ -448,6 +457,8 @@ Snapshots are then available for analytics, progress tracking, and replay featur
 - **Postgres / TypeORM**
   - Long‑lived relational data:
     - Users and their related data (roles, plan, stats).
+    - Friendships (`UserFriends`).
+    - **Inbox notifications** (`InboxNotifications`) for recipients who were offline or not on SSE when an event was published (see `NotificationFeedService` / skip-list in `notification-inbox-skip.constants.ts`).
     - Problem catalog, categories, themes, mappings.
 - **MongoDB / Mongoose**
   - Historical, append‑only style data:

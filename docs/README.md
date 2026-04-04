@@ -53,6 +53,7 @@ This directory contains comprehensive documentation for all modules in the Chess
 8. **[Notification Service](./07-notification-service.md)** - Real-time notifications
    - Server-Sent Events (SSE)
    - Redis pub/sub integration
+   - Postgres `InboxNotifications` for missed-event replay (`GET /notifications/inbox`)
    - Connection management
 
 9. **[Snapshot Service](./08-snapshot-service.md)** - Game and problem history
@@ -66,7 +67,7 @@ This directory contains comprehensive documentation for all modules in the Chess
    - Postgres/Mongo/Redis interactions
 
 11. **[Database ERDs](./11-erd-databases.md)** - PostgreSQL, MongoDB, and cross-DB links
-   - PostgreSQL entity relationships
+   - PostgreSQL entity relationships (including `InboxNotifications`)
    - Mongo snapshot collection schema map
    - Logical user/problem linking across databases
 
@@ -106,9 +107,9 @@ The application follows a modular monolith architecture with the following layer
 - **Snapshot Service**: Data persistence
 
 ### Data Storage
-- **PostgreSQL**: User data, problems, categories
+- **PostgreSQL**: User data, friends, **notification inbox** (`InboxNotifications`), problems, categories, themes
 - **MongoDB**: Game and problem snapshots
-- **Redis**: Sessions, game state, pub/sub
+- **Redis**: Sessions, game state, pub/sub (including `notifications:user` for SSE fan-out)
 
 ---
 
@@ -245,6 +246,7 @@ Server-Sent Events are documented in the [Notification Service](./07-notificatio
 - Use TypeORM migrations for schema changes
 - Test migrations in development first
 - Document breaking changes
+- Keep **[Database ERDs](./11-erd-databases.md)** aligned when adding or changing PostgreSQL entities (e.g. `InboxNotifications`, `UserFriends`, catalog tables)
 
 ---
 

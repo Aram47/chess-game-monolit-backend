@@ -2,7 +2,7 @@
 
 This document contains ERDs for:
 
-1. PostgreSQL schema
+1. PostgreSQL schema (including user inbox notifications for missed SSE)
 2. MongoDB collections
 3. Cross-database logical connections (user and snapshots approach)
 
@@ -47,6 +47,15 @@ erDiagram
     timestamp createdAt
   }
 
+  INBOX_NOTIFICATIONS {
+    int id PK
+    int userId "recipient logical FK to Users.id"
+    varchar eventType "e.g. friend.request.accepted"
+    jsonb payload "nullable event payload"
+    timestamptz readAt "nullable unread when null"
+    timestamp createdAt
+  }
+
   PROBLEM_CATEGORIES {
     int id PK
     varchar name
@@ -85,6 +94,7 @@ erDiagram
   USERS ||--|| USER_RELATED_DATA : "1:1 (cascade create, delete)"
   USERS ||--o{ USER_FRIENDS : "user userId"
   USERS ||--o{ USER_FRIENDS : "friend friendId"
+  USERS ||--o{ INBOX_NOTIFICATIONS : "recipient userId"
   PROBLEM_CATEGORIES ||--o{ CHESS_PROBLEMS : "1:N category_id"
   CHESS_PROBLEMS ||--o{ PROBLEM_THEMES : "1:N problem_id"
   THEMES ||--o{ PROBLEM_THEMES : "1:N theme_id"
@@ -95,6 +105,13 @@ erDiagram
 - `Users.password` may be **null** for Google sign-up; `Users.authProvider` distinguishes `local` vs `google`.
 - `Users` <-> `UserRelatedData` is modeled as one-to-one.
 - `UserFriends`: one row per unordered pair; `userId` < `friendId` enforced by a check constraint; unique on `(userId, friendId)`; both FKs cascade on user delete.
+- **`InboxNotifications`** (TypeORM entity `InboxNotification`, table `InboxNotifications`):
+  - One row per **persisted notification** delivered to a **recipient** `userId` (same numeric id as `Users.id`; **no TypeORM `@ManyToOne` / DB FK** in the current entity—integrity is enforced in application code).
+  - Used when the user may have been **offline** or **not connected to SSE**; complements live Redis → SSE delivery.
+  - Columns: `eventType` (varchar 64), `payload` (jsonb, nullable), `readAt` (timestamptz, nullable = unread), `createdAt`.
+  - Composite-style indexes: `(userId, readAt)`, `(userId, createdAt)` for inbox listing and unread queries.
+  - **Not every SSE event is stored**: see `src/notification-service/notification-inbox-skip.constants.ts` (e.g. `friend.request.received` / `friend.request.sent` are skipped because `GET /user-service/friends/pending` is the source of truth for those).
+  - HTTP API: `GET /notifications/inbox`, `PATCH /notifications/inbox/:id/read`, `POST /notifications/inbox/read-all` (see [Notification Service](./07-notification-service.md)).
 - `chess_problems` belongs to one `problem_categories` row.
 - Problem-theme is many-to-many through `problem_themes`.
 - In code, `ProblemTheme` includes both scalar columns (`problemId`, `themeId`) and joined relation columns (`problem_id`, `theme_id`), so schema naming should be reviewed for consistency.
@@ -157,6 +174,10 @@ erDiagram
     int id PK
   }
 
+  INBOX_NOTIFICATIONS {
+    int userId "postgres Users.id recipient"
+  }
+
   GAME_SNAPSHOT {
     string white "postgres user id"
     string black "postgres user id"
@@ -168,6 +189,7 @@ erDiagram
     string problemId "postgres chess_problems.id"
   }
 
+  USERS ||..o{ INBOX_NOTIFICATIONS : "logical recipient userId"
   USERS ||..o{ GAME_SNAPSHOT : "logical link via white/black/winnerId"
   USERS ||..o{ PROBLEM_SNAPSHOT : "logical link via userId"
   CHESS_PROBLEMS ||..o{ PROBLEM_SNAPSHOT : "logical link via problemId"
@@ -180,8 +202,9 @@ erDiagram
   - `GameSnapshot.white/black/winnerId` <- Postgres `Users.id` converted to string.
   - `ProblemSnapshot.userId` <- Postgres `Users.id` converted to string.
   - `ProblemSnapshot.problemId` <- Postgres `chess_problems.id` converted to string.
+- **Within Postgres**, `InboxNotifications.userId` is also a **logical** reference to `Users.id` (same pattern: no FK constraint on the inbox table in the current schema).
 - This is a denormalized event/history approach:
-  - Postgres = operational source of truth.
+  - Postgres = operational source of truth (and **inbox rows** for notification replay after login).
   - Mongo = historical snapshots/analytics store.
 - Because links are logical, integrity depends on service code (not FK constraints).
 

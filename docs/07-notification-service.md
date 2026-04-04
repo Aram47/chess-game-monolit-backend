@@ -10,22 +10,32 @@ The Notification Service module:
 - Provides real-time notifications via Server-Sent Events (SSE)
 - Manages user connection lifecycle
 - Integrates with Redis for distributed notifications
+- Persists selected events to Postgres (`InboxNotifications`) so users can fetch missed alerts after login
 - Supports multiple concurrent connections per user
 - Implements heartbeat mechanism for connection health
 
 ## Architecture
 
 The module consists of:
-- **NotificationsController**: SSE endpoint handler
+- **NotificationsController**: SSE stream + REST inbox (`GET/PATCH/POST …/inbox…`)
 - **NotificationsService**: Connection and event management
-- **NotificationsRedisSubscriber**: Redis pub/sub integration
-- **NotificationsModule**: Module configuration
+- **NotificationsRedisSubscriber**: Redis pub/sub integration (subscribes to `NOTIFICATIONS_USER_CHANNEL`)
+- **NotificationsPublisherService**: Persists to inbox (except skip-list), then publishes to Redis
+- **NotificationFeedService**: TypeORM access to `InboxNotification` rows
+- **notification.constants.ts**: `NOTIFICATIONS_USER_CHANNEL` (`notifications:user`) and `UserNotificationEvents` (SSE event name constants)
+- **notification-inbox-skip.constants.ts**: Events not stored in inbox (e.g. `friend.request.received` / `friend.request.sent` — use `GET /user-service/friends/pending` instead)
+- **NotificationsModule**: Imports `RedisModule` + `TypeOrmModule.forFeature([InboxNotification])`
 
 ### Dependencies
 
 - **Redis**: For pub/sub message distribution
+- **PostgreSQL / TypeORM**: Inbox persistence (`InboxNotifications` table)
 - **RxJS**: For reactive event streams (Subject, Observable)
 - **Express**: For SSE endpoint handling
+
+### PostgreSQL table (ERD)
+
+The **`InboxNotifications`** table stores per-recipient notification rows for events that should survive an offline period (see [Database ERDs](./11-erd-databases.md) §1 for the full PostgreSQL diagram, column list, indexes, and relationship to `Users`). Entity class: `InboxNotification` (`common/models/postgres_entity/inbox-notification.entity.ts`). Registered in `AppModule` TypeORM `entities` and in `NotificationsModule` via `TypeOrmModule.forFeature`.
 
 ---
 
@@ -72,7 +82,7 @@ The `NotificationsService` manages user connections:
 The `NotificationsRedisSubscriber` integrates with Redis pub/sub:
 
 **Redis Channel:**
-- Channel name: `notifications:user`
+- Channel name: `notifications:user` (see `NOTIFICATIONS_USER_CHANNEL` in `notification.constants.ts`)
 - Subscribes on module initialization
 - Listens for published messages
 
@@ -88,10 +98,11 @@ The `NotificationsRedisSubscriber` integrates with Redis pub/sub:
 ```
 
 **Publishing Notifications:**
-Any service can publish notifications by publishing to Redis:
+- **Preferred:** inject `NotificationsPublisherService` and call `publishToUser(userId, event, data)` so the channel name and JSON shape stay consistent.
+- **Low-level:** any service with the Redis client can `PUBLISH` to `NOTIFICATIONS_USER_CHANNEL`:
 ```typescript
 await redis.publish(
-  'notifications:user',
+  NOTIFICATIONS_USER_CHANNEL,
   JSON.stringify({
     userId: 123,
     event: 'game.invitation',
@@ -99,6 +110,14 @@ await redis.publish(
   })
 );
 ```
+
+**Built-in social events (from `UserFriendService`):**
+- `friend.request.received` — **recipient**. `data`: `{ friendship: FriendshipRowDto }`.
+- `friend.request.sent` — **requester** (same create/reopen pending). `data`: `{ friendship: FriendshipRowDto }`.
+- `friend.request.accepted` — **both** participants after accept. `data`: `{ friendship: FriendshipRowDto }` for each viewer.
+- `friend.request.rejected` — **requester** after recipient rejects. `data`: `{ friendshipId: number }`.
+- `friend.request.cancelled` — **recipient** after requester cancels pending. `data`: `{ friendshipId: number }`.
+- `friend.removed` — the **other** user after someone unfriends (accepted row removed). `data`: `{ friendshipId: number }`.
 
 ---
 
@@ -120,6 +139,21 @@ The service implements a heartbeat to keep connections alive:
 ---
 
 ## API Endpoints
+
+### GET `/notifications/inbox`
+Returns persisted notifications for the current user (events that occurred while offline or with no SSE connection).
+
+**Query:** `unreadOnly` (optional, `true`/`1`), `limit` (optional, default 50, max 100).
+
+**Response:** `Array<{ id, eventType, data, readAt, createdAt }>` (`readAt` / `createdAt` ISO strings).
+
+### PATCH `/notifications/inbox/:id/read`
+Marks one row read. **204** No Content.
+
+### POST `/notifications/inbox/read-all`
+Marks all unread rows read for the user. **204** No Content.
+
+---
 
 ### GET `/notifications/stream`
 Establishes SSE connection for real-time notifications.
@@ -153,6 +187,12 @@ data: {"gameId":"abc123","opponent":"user456"}
 
 event: problem.solved
 data: {"problemId":42,"score":100}
+
+event: friend.request.received
+data: {"friendship":{"id":1,"status":"pending","requestedBy":2,"createdAt":"...","otherUser":{"id":2,"username":"alice",...}}}
+
+event: friend.request.accepted
+data: {"friendship":{"id":1,"status":"accepted",...}}
 ```
 
 ---
@@ -212,18 +252,33 @@ Initializes Redis subscription.
 
 **Flow:**
 1. Creates Redis subscriber client (duplicate)
-2. Subscribes to `notifications:user` channel
+2. Subscribes to `NOTIFICATIONS_USER_CHANNEL` (`notifications:user`)
 3. Sets up message handler
 4. Parses and forwards messages to NotificationsService
 
 ---
 
+### NotificationsPublisherService
+
+#### `publishToUser(userId, event, data, options?)`
+Publishes a JSON message to `NOTIFICATIONS_USER_CHANNEL`. The subscriber turns it into an `SseEvent` and calls `pushToUser`.
+
+**Parameters:**
+- `userId`: Recipient user id
+- `event`: SSE event name (e.g. `UserNotificationEvents.FRIEND_REQUEST_RECEIVED`)
+- `data`: Serializable payload (objects are `JSON.stringify`’d inside the Redis message)
+- `options`: Optional `id` / `retry` for SSE
+
+**Errors:** Redis failures are logged; they do not throw to callers (friend request / accept HTTP responses still succeed).
+
+---
+
 ## Data Models
 
-### SseEvent
+### SseEvent (Nest `MessageEvent`)
 ```typescript
 {
-  event: string;        // Event type
+  type: string;        // SSE event name (wired as `event:` in the stream)
   data: any;           // Event payload
   id?: string;         // Optional event ID
   retry?: number;      // Optional retry interval (ms)
