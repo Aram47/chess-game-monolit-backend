@@ -152,3 +152,4 @@ Authenticated **self-service** profile APIs (e.g. `GET /api/me`) may be added la
 - **AuthService**: Handles authentication logic and token generation
 - **UserService**: Used for **registration** (`createUser`) only on this module
 - **Database**: PostgreSQL for user data persistence
+e
