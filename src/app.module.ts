@@ -9,6 +9,7 @@ import {
   ProblemCategory,
   UserRelatedData,
   UserFriend,
+  InboxNotification,
 } from '../common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
@@ -43,6 +44,7 @@ import { GameAnalysisModule } from './game-analysis/game-analysis.module';
           ProblemCategory,
           UserRelatedData,
           UserFriend,
+          InboxNotification,
         ],
         synchronize: true, // for development
       }),

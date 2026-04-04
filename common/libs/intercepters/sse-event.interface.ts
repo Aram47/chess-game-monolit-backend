@@ -1,6 +1,7 @@
+/** Matches Nest `MessageEvent` — the stream uses `type` for the SSE `event:` field. */
 export interface SseEvent<T = any> {
   data: T;
-  event?: string;
+  type?: string;
   id?: string;
   retry?: number;
 }

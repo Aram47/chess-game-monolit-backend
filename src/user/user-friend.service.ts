@@ -16,6 +16,8 @@ import {
   PublicUserSnippetDto,
   SendFriendRequestDto,
 } from '../../common';
+import { NotificationsPublisherService } from '../notification-service/notification-publisher.service';
+import { UserNotificationEvents } from '../notification-service/notification.constants';
 
 @Injectable()
 export class UserFriendService {
@@ -24,6 +26,7 @@ export class UserFriendService {
     private readonly friendRepo: Repository<UserFriend>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly notificationsPublisher: NotificationsPublisherService,
   ) {}
 
   private canonicalPair(a: number, b: number): [number, number] {
@@ -79,6 +82,72 @@ export class UserFriendService {
       createdAt: row.createdAt,
       otherUser: this.toSnippet(this.otherUser(row, me)),
     };
+  }
+
+  private async notifyFriendRequestReceived(
+    recipientUserId: number,
+    row: UserFriend,
+  ): Promise<void> {
+    const friendship = this.rowToDto(row, recipientUserId);
+    await this.notificationsPublisher.publishToUser(
+      recipientUserId,
+      UserNotificationEvents.FRIEND_REQUEST_RECEIVED,
+      { friendship },
+    );
+  }
+
+  private async notifyFriendRequestSent(requesterId: number, row: UserFriend): Promise<void> {
+    const friendship = this.rowToDto(row, requesterId);
+    await this.notificationsPublisher.publishToUser(
+      requesterId,
+      UserNotificationEvents.FRIEND_REQUEST_SENT,
+      { friendship },
+    );
+  }
+
+  private async notifyFriendRequestAccepted(
+    viewerId: number,
+    row: UserFriend,
+  ): Promise<void> {
+    const friendship = this.rowToDto(row, viewerId);
+    await this.notificationsPublisher.publishToUser(
+      viewerId,
+      UserNotificationEvents.FRIEND_REQUEST_ACCEPTED,
+      { friendship },
+    );
+  }
+
+  private otherParticipantId(row: UserFriend, me: number): number {
+    const uid = row.user.id;
+    return uid === me ? row.friend.id : uid;
+  }
+
+  private async notifyFriendRequestRejected(
+    requesterId: number,
+    friendshipId: number,
+  ): Promise<void> {
+    await this.notificationsPublisher.publishToUser(
+      requesterId,
+      UserNotificationEvents.FRIEND_REQUEST_REJECTED,
+      { friendshipId },
+    );
+  }
+
+  private async notifyFriendRequestCancelled(
+    recipientId: number,
+    friendshipId: number,
+  ): Promise<void> {
+    await this.notificationsPublisher.publishToUser(
+      recipientId,
+      UserNotificationEvents.FRIEND_REQUEST_CANCELLED,
+      { friendshipId },
+    );
+  }
+
+  private async notifyFriendRemoved(otherUserId: number, friendshipId: number): Promise<void> {
+    await this.notificationsPublisher.publishToUser(otherUserId, UserNotificationEvents.FRIEND_REMOVED, {
+      friendshipId,
+    });
   }
 
   private assertParticipant(row: UserFriend, userId: number) {
@@ -139,6 +208,8 @@ export class UserFriendService {
       });
       const saved = await this.friendRepo.save(created);
       const full = await this.loadWithRelations(saved.id);
+      await this.notifyFriendRequestReceived(targetUserId, full!);
+      await this.notifyFriendRequestSent(fromUserId, full!);
       return this.rowToDto(full!, fromUserId);
     }
 
@@ -153,6 +224,8 @@ export class UserFriendService {
     existing.status = FriendshipStatus.PENDING;
     await this.friendRepo.save(existing);
     const full = await this.loadWithRelations(existing.id);
+    await this.notifyFriendRequestReceived(targetUserId, full!);
+    await this.notifyFriendRequestSent(fromUserId, full!);
     return this.rowToDto(full!, fromUserId);
   }
 
@@ -175,6 +248,8 @@ export class UserFriendService {
     row.status = FriendshipStatus.ACCEPTED;
     await this.friendRepo.save(row);
     const full = await this.loadWithRelations(row.id);
+    await this.notifyFriendRequestAccepted(row.requestedBy, full!);
+    await this.notifyFriendRequestAccepted(currentUserId, full!);
     return this.rowToDto(full!, currentUserId);
   }
 
@@ -197,6 +272,7 @@ export class UserFriendService {
     row.status = FriendshipStatus.REJECTED;
     await this.friendRepo.save(row);
     const full = await this.loadWithRelations(row.id);
+    await this.notifyFriendRequestRejected(row.requestedBy, row.id);
     return this.rowToDto(full!, currentUserId);
   }
 
@@ -212,7 +288,9 @@ export class UserFriendService {
     this.assertParticipant(row, currentUserId);
 
     if (row.status === FriendshipStatus.ACCEPTED) {
+      const otherId = this.otherParticipantId(row, currentUserId);
       await this.friendRepo.remove(row);
+      await this.notifyFriendRemoved(otherId, rowId);
       return;
     }
 
@@ -222,7 +300,9 @@ export class UserFriendService {
           'Only the requester can cancel a pending request; use reject for incoming requests',
         );
       }
+      const recipientId = this.otherParticipantId(row, currentUserId);
       await this.friendRepo.remove(row);
+      await this.notifyFriendRequestCancelled(recipientId, rowId);
       return;
     }
 

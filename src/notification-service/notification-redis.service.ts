@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../common';
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { NOTIFICATIONS_USER_CHANNEL } from './notification.constants';
 import { NotificationsService } from './notification.service';
 
 @Injectable()
@@ -18,7 +19,7 @@ export class NotificationsRedisSubscriber implements OnModuleInit {
      * @Example
      *
      * await redis.publish(
-     * 	'notifications:user',
+     * 	NOTIFICATIONS_USER_CHANNEL,
      * 	JSON.stringify({
      * 		userId,
      * 		event: 'order.created',
@@ -27,7 +28,7 @@ export class NotificationsRedisSubscriber implements OnModuleInit {
      * );
      */
     const subscriber = this.redisClient.duplicate();
-    await subscriber.subscribe('notifications:user');
+    await subscriber.subscribe(NOTIFICATIONS_USER_CHANNEL);
 
     subscriber.on('message', (_, message) => {
       try {
@@ -38,7 +39,7 @@ export class NotificationsRedisSubscriber implements OnModuleInit {
 
         this.notificationsService.pushToUser(payload.userId, {
           data: payload.data,
-          event: payload.event,
+          type: payload.event,
           id: payload.id,
           retry: payload.retry,
         });
