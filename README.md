@@ -110,7 +110,7 @@ Configuration is loaded from **`.env.${NODE_ENV}`** (for example `.env.developme
 
 - **REST:** Documented in Swagger at `/swagger` when `NODE_ENV=development`. Treat Swagger as the contract for paths, methods, and DTOs.
 - **WebSocket:** Socket.IO — see [docs/09-socket-service.md](./docs/09-socket-service.md).
-- **Notifications:** SSE and Redis — see [docs/07-notification-service.md](./docs/07-notification-service.md).
+- **Notifications:** SSE, Redis pub/sub, and Postgres `InboxNotifications` for inbox REST — see [docs/07-notification-service.md](./docs/07-notification-service.md) and [docs/11-erd-databases.md](./docs/11-erd-databases.md).
 
 Further reading: [docs/README.md](./docs/README.md) (module index, security notes, troubleshooting).
 
