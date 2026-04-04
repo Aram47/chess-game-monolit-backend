@@ -1,101 +1,119 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Chess Game Monolith Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS modular monolith for the chess platform: REST API, real-time play (Socket.IO), puzzles and PvE, Stockfish-backed analysis, JWT and Google OAuth auth, and notifications (Redis pub/sub + SSE).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+| Area | Technology |
+|------|------------|
+| Runtime | Node.js, TypeScript, NestJS 10 |
+| Relational DB | PostgreSQL 16, TypeORM |
+| Document DB | MongoDB, Mongoose |
+| Cache / pub-sub | Redis (ioredis) |
+| Real-time | Socket.IO |
+| Chess rules | chess.js |
+| Engine | Stockfish (built in Docker image; local dev needs `stockfish` on `PATH`) |
+| API docs | Swagger UI (development only) |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Prerequisites
 
-## Project setup
+- **Node.js** 18+ recommended (aligns with NestJS 10)
+- **npm**
+- For local runs without Docker: **PostgreSQL**, **MongoDB**, **Redis**, and **Stockfish** available to the process
+
+## Quick start with Docker
+
+The compose file starts PostgreSQL, MongoDB, Redis, and the Nest app. The app loads `.env.development` (see [Environment](#environment)).
 
 ```bash
-$ npm install
+cp .env.example .env.development
+# Edit .env.development: set secrets, OAuth (if used), and ensure DB/redis/mongo hosts match compose service names when running inside Docker (see existing .env.development template).
+
+npm install
+npm run docker:up
 ```
 
-## Compile and run the project
+- HTTP API: `http://localhost:3000` (or the `PORT` you set)
+- Swagger (only when `NODE_ENV=development`): `http://localhost:3000/swagger`
+- OpenAPI JSON: `http://localhost:3000/swagger/json`
+
+Helper scripts (see `package.json`): `docker:down`, `docker:logs`, `docker:wait`, `docker:test`, `docker:setup`.
+
+## Local development (without Docker)
+
+1. Start PostgreSQL, MongoDB, and Redis locally.
+2. Install Stockfish and ensure the binary is on `PATH` (engine features depend on it).
+3. Copy and fill env files:
+
+   ```bash
+   cp .env.example .env.development
+   ```
+
+   Use `localhost` (and your local ports) for `POSTGRES_HOST`, `MONGO_HOST`, `REDIS_HOST`.
+
+4. Run:
+
+   ```bash
+   npm install
+   npm run start:dev
+   ```
+
+Production build:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run build
+npm run start:prod
 ```
 
-## Run tests
+## Environment
 
-```bash
-# unit tests
-$ npm run test
+Configuration is loaded from **`.env.${NODE_ENV}`** (for example `.env.development` when `NODE_ENV=development`). See `.env.example` for the full variable list.
 
-# e2e tests
-$ npm run test:e2e
+| Variable | Purpose |
+|----------|---------|
+| `PORT` | HTTP port (default `3000`) |
+| `NODE_ENV` | `development` enables Swagger; affects env file selection |
+| `FRONTEND_URL` | CORS / OAuth redirect context |
+| `JWT_SECRET`, `JWT_EXPIRES_IN` | Access token |
+| `JWT_REFRESH_SECRET`, `JWT_REFRESH_EXPIRES_IN` | Refresh token |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` | Google OAuth |
+| `REDIS_HOST`, `REDIS_PORT` | Redis |
+| `MONGO_HOST`, `MONGO_PORT`, `MONGO_DB_NAME` | MongoDB |
+| `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | PostgreSQL (TypeORM) |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Also used by the Postgres Docker image when using `docker-compose` |
 
-# test coverage
-$ npm run test:cov
-```
+**Security:** Never commit real secrets. Replace placeholder values in `.env.development` before sharing or deploying.
 
-## Deployment
+## Project layout
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- `src/` — NestJS application modules (API gateway, auth, user, game, game engine, sockets, notifications, owner, snapshot, game analysis).
+- `common/` — Shared entities, constants, utilities, guards, and cross-cutting code.
+- `docs/` — Module-level architecture and API notes ([index](./docs/README.md)).
+- `docker-compose.yml` — Local stack for DBs, Redis, and the app.
+- `Dockerfile` — Node image with Stockfish 15.1 built from source.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Scripts
 
-```bash
-$ npm install -g mau
-$ mau deploy
-```
+| Command | Description |
+|---------|-------------|
+| `npm run start:dev` | Dev server with watch (`NODE_ENV=development`) |
+| `npm run start:debug` | Dev + debugger |
+| `npm run build` | Compile to `dist/` |
+| `npm run start:prod` | Run compiled app (`NODE_ENV=production`) |
+| `npm run lint` | ESLint |
+| `npm test` | Jest (default) |
+| `npm run test:unit` | Unit tests |
+| `npm run test:int` | Integration tests |
+| `npm run test:e2e` | E2E tests |
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## API and protocols
 
-## Resources
+- **REST:** Documented in Swagger at `/swagger` when `NODE_ENV=development`. Treat Swagger as the contract for paths, methods, and DTOs.
+- **WebSocket:** Socket.IO — see [docs/09-socket-service.md](./docs/09-socket-service.md).
+- **Notifications:** SSE and Redis — see [docs/07-notification-service.md](./docs/07-notification-service.md).
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Further reading: [docs/README.md](./docs/README.md) (module index, security notes, troubleshooting).
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# chess-game-monolit-backend
-
+See `package.json` (`private`, `UNLICENSED` unless you change it).
